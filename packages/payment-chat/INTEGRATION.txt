@@ -1,0 +1,78 @@
+결제 및 채팅 연결 안내
+
+현재 과금 기준
+- 추천 프로필 3명은 무료로 공개한다. 무료 추천 API와 프로필 화면은 B 담당이다.
+- 선택한 상대와 대화를 시작할 권한은 상대당 500원이다.
+- 같은 상대의 미결제 주문은 재사용한다. 결제한 상대나 기존 채팅방에는 재결제를 요구하지 않는다.
+- 현재 구현 기본안은 결제 후 대화 요청, 상대 수락 후 채팅이다. 수신자 수락과 답장은 무료다.
+- 결제만으로 상대의 수락을 보장하지 않는다. 거절 이후 자동 환불 여부 등 상품 정책은 팀 합의가 필요하다.
+
+로컬 검증
+Node.js 24 이상에서 저장소 루트 기준 실행:
+  npm test --prefix packages/payment-chat
+외부 패키지 설치 없이 Node 내장 테스트 러너와 TypeScript 타입 제거 기능으로 실행한다.
+이 명령은 동작 테스트이며 TypeScript 정적 타입 검사는 아니다.
+
+현재 제공하는 것
+- src/service.ts: 주문 생성/조회, 원문 결제 이벤트 검증 연결, 상대별 권한,
+  대화 요청/수락/거절, 메시지 전송/조회와 접근 검사.
+- src/ports.ts: 실제 저장소와 결제 제공자가 구현해야 하는 인터페이스.
+- test/service.test.ts: 테스트 전용 메모리 저장소와 결제 검증기 및 동작 테스트.
+- contracts/payment-chat.ts: 저장소 루트의 팀 공유 요청/응답 타입.
+
+연결 예시
+  const service = createService({ repository: supabaseRepository, gateway: grobleGateway });
+  // actor는 A의 서버 인증 세션에서 생성한다. 클라이언트 userId를 신뢰하지 않는다.
+  const order = await service.createOrder(actor, request.matchResultId);
+  // 결제 복귀 화면에서는 order(actor, orderId)로 서버 상태를 확인한다.
+  // POST /api/chat-requests의 요청 본문은 { orderId }다.
+  const request = await service.requestChat(actor, orderId);
+
+A에게 필요한 연결
+- 공통 앱/패키지 매니저, 서버 로그인 세션, API 오류 변환 및 입력 검증.
+- 이 패키지는 서버에서만 불러온다. 프론트에는 서비스 구현이나 비밀 키를 전달하지 않는다.
+
+A의 연동 규약 제안 반영
+- Next.js App Router, TypeScript, pnpm을 사용하자는 제안이다. 공통 앱 생성이나 main 업로드 완료 통보는 아니다.
+- C는 user.id 문자열을 Actor.userId로 사용한다. DB는 Supabase Auth UUID를 참조한다.
+- 서버 연결 지점은 src/lib/auth/get-current-user-id.ts의 getCurrentUserId(): Promise<string | null>이다.
+  함수의 실제 생성 경로와 쿠키 갱신 처리는 A 코드 수령 후 확인한다.
+- 실제 DB 컬럼은 orders.buyer_id, chat_requests.requester_id/recipient_id,
+  messages.sender_id로 제안되어 있다. B와 합의한 뒤 어댑터에서 C의 userId/from/to/senderId에 매핑한다.
+- 웹훅에는 로그인 세션을 요구하지 않는다. 서명 검증 후 저장된 주문 참조값으로 구매자를 찾는다.
+- A에게 공통 Node/pnpm 버전과 pnpm-lock.yaml 및 실행 README 공유를 요청한다.
+  C의 독립 테스트는 Node 24 이상을 요구하므로 공통 Node 버전과 호환성을 맞춰야 한다.
+- pnpm 기반 실행은 저장소 루트에서 pnpm --dir packages/payment-chat test로 가능하다.
+- 기존 PDF 및 A의 답변에 남은 '500원 결제 후 프로필 3명 공개'는 폐기된 흐름이다.
+  올바른 흐름은 무료 추천 3명 공개 → 상대 선택 → 상대당 500원 결제 → 대화 요청 → 수락 → 채팅이다.
+  결제 전에 후보 3명 이상인지 검사하거나 결제 후 3명을 새로 선정하지 않는다.
+- 환경 변수 예시는 A의 공통 .env.example에 모은다. 실제 키는 Git과 채팅에 기록하지 않는다.
+  GROBLE_PAYMENT_URL/GROBLE_WEBHOOK_SECRET은 프로젝트 변수명 제안이며 실제 제공자 검증 명세는 별도 확인한다.
+
+B에게 필요한 연결
+- 무료 추천 결과는 id, userId, targetId를 가진다. userId는 추천받은 사용자다.
+- 프로필 공개 동의/활성 상태와 양방향 차단 상태 확인 기능.
+- 결제와 채팅 저장용 DB 트랜잭션 및 RLS. transaction 콜백을 각각의 Supabase REST
+  호출로 구현하면 원자성이 보장되지 않는다. DB 함수/RPC 등 하나의 실제 트랜잭션으로 구성한다.
+- 주문 참조값과 결제 거래 ID의 고유 제약, 사용자-상대별 활성 주문 및 요청 고유 제약,
+  두 참여자의 순서와 무관한 채팅방 고유 제약과 동시 요청 직렬화가 필요하다.
+- messages 조회/전송 및 Realtime 구독은 참여자만 허용한다. 이 패키지의 서버 검사는 RLS를 대체하지 않는다.
+- 메시지는 DB 저장 후 Realtime으로 전달한다. 조회는 최대 100개, 시각과 ID 정렬 및 커서 검증이 필요하다.
+
+Groble 연결 전 필요한 사항
+- 상품 ID, 500원 지원, 테스트 결제, 서명 헤더와 원문 검증 규격, 이벤트/환불 명세.
+- PaymentGateway.verifyCompleted는 실제 완료 이벤트만 검증 후 내부 형식으로 변환한다.
+- 웹훅은 raw body를 사용한다. JSON을 파싱 후 재직렬화한 내용을 서명 검증에 사용하지 않는다.
+- 결제 이후 상대 비공개/차단은 refund_pending으로 기록한다. 실제 환불 실행과 재시도 작업은 아직 미구현이다.
+- 비완료 이벤트, 취소/환불 웹훅, 운영 오류 재시도 및 관리자 처리는 실제 명세에 맞춰 추가해야 한다.
+
+아직 제공하지 않는 것
+- Next.js HTTP 라우트와 화면, 실제 Groble 검증/결제 연결, Supabase DB/RLS/Realtime 어댑터.
+- 대화 목록/받은 요청 목록, 차단·신고 생성 API, 요청/메시지 속도 제한, 운영 환불 처리.
+- 현재 차단은 요청/수락/메시지/기록 조회를 거부한다. 기존 채팅방의 환불 후 존속 정책은 팀 합의 후 반영한다.
+- 프로필 무료 공개도 생년월일·학교 이메일·전체 사주 원문 공개를 뜻하지 않는다.
+
+저장소 구성
+- 공통 프로젝트와 충돌하지 않도록 독립 패키지로 작성했다. 루트 앱 초기 설정은 변경하지 않았다.
+- 팀 초기 파일은 repo-init/에 있으며 C 모듈은 루트 contracts/ 및 packages/payment-chat/에 있다.
+- A의 실제 앱 생성 이후 import와 실행 설정을 연결한다.
