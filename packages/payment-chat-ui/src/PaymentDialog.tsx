@@ -1,0 +1,144 @@
+"use client";
+
+import { useState } from "react";
+import type { CheckoutState } from "../../payment-chat/src/checkout-flow.ts";
+import type { Profile } from "./catalog.ts";
+import { Avatar, Busy, Icon, Modal } from "./ui.tsx";
+
+export function PaymentDialog({
+  profile,
+  state,
+  busy,
+  onClose,
+  onConfirm,
+  onRequest,
+  onRecheck,
+}: {
+  profile: Profile;
+  state: CheckoutState;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (mode: "success" | "delay") => void;
+  onRequest: () => void;
+  onRecheck: () => void;
+}) {
+  const [mode, setMode] = useState<"success" | "delay">("success");
+  const ready = state.kind === "chat_available";
+  const waiting =
+    state.kind === "checking" ||
+    state.kind === "creating" ||
+    state.kind === "idle";
+  const pending = state.kind === "confirmation_pending";
+  return (
+    <Modal title="대화 시작하기" onClose={onClose} className="payment-modal">
+      <div className="eyebrow">A LITTLE HELLO</div>
+      <h2>
+        {ready
+          ? "이제, 인사를 건네볼까요?"
+          : pending
+            ? "결제를 확인하고 있어요"
+            : "인연의 다음 장을 열어볼까요?"}
+      </h2>
+      <p className="modal-subtitle">
+        {ready
+          ? "대화 요청을 보내면 상대방에게 전달돼요."
+          : pending
+            ? "확인이 늦어져도 다시 결제하지 않아도 돼요."
+            : "마음이 닿은 한 사람에게, 가벼운 첫인사를."}
+      </p>
+      <div className="payment-person">
+        <Avatar name={profile.name} tone={profile.tone} small />
+        <div>
+          <strong>{profile.name}</strong>
+          <span>
+            {profile.major} · {profile.year}
+          </span>
+        </div>
+        <span className="match-pill">나의 추천 인연</span>
+      </div>
+      <div className="receipt">
+        <div>
+          <span>이 상대에게 대화 요청</span>
+          <strong>
+            500<span>원</span>
+          </strong>
+        </div>
+        <div className="receipt-note">
+          <Icon name="check" size={15} />
+          같은 상대와의 대화는 추가 결제 없이 이어져요
+        </div>
+      </div>
+      {ready ? (
+        <div className="success-note" role="status">
+          <Icon name="check" size={18} />이 상대와 대화할 수 있는 권한이
+          확인됐어요.
+        </div>
+      ) : null}
+      <ul className="payment-notes">
+        <li>프로필 확인은 무료예요.</li>
+        <li>상대가 수락하면 일대일 대화가 시작돼요.</li>
+        <li>상대의 수락이나 답장을 보장하지는 않아요.</li>
+      </ul>
+      {state.kind === "error" ? (
+        <p className="inline-error" role="alert">
+          {state.message}
+        </p>
+      ) : null}
+      {["refund_pending", "refunded", "cancelled"].includes(state.kind) ? (
+        <p className="inline-error" role="status">
+          {state.kind === "refund_pending"
+            ? "현재 대화 요청이 어려워 환불 확인이 필요해요."
+            : state.kind === "refunded"
+              ? "환불된 주문이에요."
+              : "취소된 주문이에요."}
+        </p>
+      ) : null}
+      {waiting || busy ? (
+        <button className="primary wide" disabled>
+          <Busy text={state.kind === "checking" ? "결제 확인 중" : "처리 중"} />
+        </button>
+      ) : ready ? (
+        <button className="primary wide" onClick={onRequest}>
+          대화 요청 보내기
+          <Icon name="arrow" size={18} />
+        </button>
+      ) : pending ? (
+        <button className="primary wide" onClick={onRecheck}>
+          데모 결제 완료 후 다시 확인
+          <Icon name="refresh" size={18} />
+        </button>
+      ) : state.kind === "payment_required" ? (
+        <button className="primary wide" onClick={() => onConfirm(mode)}>
+          <Icon name="lock" size={17} />
+          500원 결제 체험하기
+        </button>
+      ) : (
+        <button className="secondary wide" onClick={onClose}>
+          닫기
+        </button>
+      )}
+      <p className="demo-fineprint">
+        데모 화면이에요. 실제 결제나 청구가 발생하지 않아요.
+      </p>
+      {state.kind === "payment_required" ? (
+        <details className="scenario">
+          <summary>데모 시나리오 선택</summary>
+          <div className="segmented">
+            <button
+              className={mode === "success" ? "selected" : ""}
+              onClick={() => setMode("success")}
+            >
+              바로 확인
+            </button>
+            <button
+              className={mode === "delay" ? "selected" : ""}
+              onClick={() => setMode("delay")}
+            >
+              확인 지연
+            </button>
+          </div>
+        </details>
+      ) : null}
+    </Modal>
+  );
+}
