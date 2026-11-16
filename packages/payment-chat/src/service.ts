@@ -118,7 +118,7 @@ export function createService(deps: {
         if (!(await tx.profileAvailable(order.targetId))) forbidden();
         const existing = await tx.requestForPair(userId, order.targetId);
         if (existing) return existing; // 거절 후 반복 요청도 생성하지 않는다.
-        const request = { id: id(), from: userId, to: order.targetId, orderId, status: "pending" as const };
+        const request = { id: id(), from: userId, to: order.targetId, orderId, status: "pending" as const, createdAt: now() };
         await tx.saveRequest(request);
         return request;
       });
@@ -136,7 +136,7 @@ export function createService(deps: {
         if (order.status !== "fulfilled" || order.targetId !== userId) forbidden();
         if (!(await tx.profileAvailable(request.from)) || !(await tx.profileAvailable(request.to))) forbidden();
         const room = await tx.conversationForPair(request.from, request.to) ?? {
-          id: id(), members: [request.from, request.to] as [string, string],
+          id: id(), members: [request.from, request.to] as [string, string], createdAt: now(),
         };
         await tx.saveConversation(room);
         await tx.saveRequest({ ...request, status: "accepted" });
@@ -165,6 +165,31 @@ export function createService(deps: {
         const message: ChatMessage = { id: id(), conversationId, senderId: userId, body: body.trim(), createdAt: now() };
         await tx.saveMessage(message);
         return message;
+      });
+    },
+
+    async requests(actor: Actor, afterId?: string) {
+      const userId = requireActor(actor);
+      return repository.transaction(async tx => {
+        const requests = await tx.requestsForUser(userId, afterId);
+        const visible = [];
+        for (const request of requests) {
+          if ((request.from === userId || request.to === userId) && !(await tx.blocked(request.from, request.to)))
+            visible.push(request);
+        }
+        return visible;
+      });
+    },
+
+    async conversations(actor: Actor, afterId?: string) {
+      const userId = requireActor(actor);
+      return repository.transaction(async tx => {
+        const rooms = await tx.conversationsForUser(userId, afterId);
+        const visible = [];
+        for (const room of rooms) {
+          if (room.members.includes(userId) && !(await tx.blocked(...room.members))) visible.push(room);
+        }
+        return visible;
       });
     },
 

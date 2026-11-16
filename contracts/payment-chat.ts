@@ -51,8 +51,18 @@ export interface CreateChatRequest {
 }
 
 export interface ChatRequestResponse {
-  requestId: string;
+  id: string;
+  from: string;
+  to: string;
+  orderId: string;
   status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+}
+
+export interface ConversationResponse {
+  id: string;
+  members: [string, string];
+  createdAt: string;
 }
 
 /** POST /api/chat-requests/:id/accept
@@ -83,7 +93,13 @@ export interface ApiErrorResponse {
     | "ORDER_NOT_READY"
     | "INVALID_REQUEST"
     | "BLOCKED"
-    | "PROVIDER_UNAVAILABLE";
+    | "PROVIDER_UNAVAILABLE"
+    | "INVALID_WEBHOOK"
+    | "NOT_FOUND"
+    | "METHOD_NOT_ALLOWED"
+    | "PAYLOAD_TOO_LARGE"
+    | "UNSUPPORTED_MEDIA_TYPE"
+    | "INTERNAL_ERROR";
   message: string;
 }
 

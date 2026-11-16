@@ -15,10 +15,52 @@ Node.js 24 이상에서 저장소 루트 기준 실행:
 
 현재 제공하는 것
 - src/service.ts: 주문 생성/조회, 원문 결제 이벤트 검증 연결, 상대별 권한,
-  대화 요청/수락/거절, 메시지 전송/조회와 접근 검사.
+  대화 요청/수락/거절, 주고받은 요청 목록/대화 목록, 메시지 전송/조회와 접근 검사.
+- src/http.ts: 서버 인증·같은 출처 POST 확인·입력 검증·본문 크기 제한·오류 응답을 갖춘
+  Request/Response 어댑터. 아래 HTTP 경로를 처리하지만 앱에 라우트로 탑재되지는 않았다.
+- src/client.ts: 브라우저에서 같은 출처의 API를 호출하는 타입이 있는 클라이언트.
+  가격/구매자/작성자 ID를 브라우저 요청 본문에 넣지 않는다. 화면 이탈 시 AbortSignal을 전달할 수 있다.
 - src/ports.ts: 실제 저장소와 결제 제공자가 구현해야 하는 인터페이스.
-- test/service.test.ts: 테스트 전용 메모리 저장소와 결제 검증기 및 동작 테스트.
+- test/fixtures.ts: 테스트 전용 메모리 저장소와 결제 검증기. 운영 코드에서 사용하지 않는다.
+- test/service.test.ts, test/http.test.ts, test/client.test.ts: 핵심 로직/HTTP/브라우저 호출 통합 테스트.
 - contracts/payment-chat.ts: 저장소 루트의 팀 공유 요청/응답 타입.
+
+HTTP 계약
+POST /api/orders                          { matchResultId } → 결제 링크 또는 기존 대화 권한
+GET  /api/orders/:id                      → 주문 상태와 선택한 상대 ID
+POST /api/webhooks/groble                 → 제공자 서명을 검증할 원문 body
+POST /api/chat-requests                   { orderId } → 대화 요청
+GET  /api/chat-requests?afterId=...        → 본인이 주고받은 요청
+POST /api/chat-requests/:id/accept         빈 body 또는 {} → 채팅방 ID
+POST /api/chat-requests/:id/reject         빈 body 또는 {} → 거절된 요청
+GET  /api/conversations?afterId=...        → 본인이 참여한 채팅방
+GET  /api/conversations/:id/messages?afterId=... → 기록 조회
+POST /api/conversations/:id/messages       { body } → 저장된 메시지
+목록은 최대 100개다. 요청/대화 목록은 생성 시각과 ID 최신순, 메시지는 오래된 순이다.
+다음 조회에는 직전 페이지 마지막 항목의 id를 afterId로 전달한다.
+요청 응답 식별자는 requestId가 아니라 id로 통일했으며 createdAt도 포함한다.
+공개 프로필 3명 조회 API는 B 담당이므로 이 유료 대화 어댑터에서 처리하지 않는다.
+
+Next.js 연결 예시
+  // A의 공통 서버 모듈에서 실제 repository/gateway/getCurrentUserId를 준비한 뒤:
+  const service = createService({ repository, gateway });
+  const handlePaymentChat = createHttpApi({
+    service,
+    getCurrentUserId: () => getCurrentUserId(),
+    appOrigin: process.env.NEXT_PUBLIC_APP_URL,
+  });
+  // 각 app/api/.../route.ts에서 해당 메서드만 내보낸다:
+  export const POST = handlePaymentChat;
+  // 조회 경로에서는 export const GET = handlePaymentChat;
+  // Node 서버용 모듈이므로 export const runtime = 'nodejs'; 사용.
+실제 모듈 import 경로와 환경 변수 존재 여부 검사는 A 앱 구조에 맞춘다.
+getCurrentUserId는 요청마다 실행되어야 하며 사용자 ID를 모듈 전역에서 캐시하면 안 된다.
+브라우저 POST는 appOrigin과 정확히 일치하는 Origin을 요구한다.
+로컬 개발과 배포에서 각각 올바른 앱 주소를 지정한다. 웹훅은 이 Origin 검사에서 제외된다.
+주문/채팅 응답은 Cache-Control: no-store다. 브라우저에 서버 오류 원문을 반환하지 않는다.
+브라우저 createOrder() 결과가 chat_available이면 재결제하지 않고 기존 요청/대화로 연결한다.
+payment_required일 때만 checkoutUrl로 이동한다. 복귀 후 order() 상태가 fulfilled일 때 요청 가능하다.
+pending이면 결제 확인 중을 표시하고, refund_pending이면 환불 안내로 전환한다.
 
 연결 예시
   const service = createService({ repository: supabaseRepository, gateway: grobleGateway });
@@ -58,17 +100,21 @@ B에게 필요한 연결
   두 참여자의 순서와 무관한 채팅방 고유 제약과 동시 요청 직렬화가 필요하다.
 - messages 조회/전송 및 Realtime 구독은 참여자만 허용한다. 이 패키지의 서버 검사는 RLS를 대체하지 않는다.
 - 메시지는 DB 저장 후 Realtime으로 전달한다. 조회는 최대 100개, 시각과 ID 정렬 및 커서 검증이 필요하다.
+- requestsForUser/conversationsForUser는 본인 관계만 조회하고 차단을 제외한 뒤 페이지를 구성한다.
+  다른 사용자의 항목을 afterId로 전달하면 거부한다. 요청과 채팅방에는 createdAt을 저장한다.
 
 Groble 연결 전 필요한 사항
 - 상품 ID, 500원 지원, 테스트 결제, 서명 헤더와 원문 검증 규격, 이벤트/환불 명세.
 - PaymentGateway.verifyCompleted는 실제 완료 이벤트만 검증 후 내부 형식으로 변환한다.
 - 웹훅은 raw body를 사용한다. JSON을 파싱 후 재직렬화한 내용을 서명 검증에 사용하지 않는다.
+- 잘못된 서명은 ServiceError('INVALID_WEBHOOK', ...)로, 일시적 제공자 장애는
+  ServiceError('PROVIDER_UNAVAILABLE', ...)로 구분한다. HTTP 어댑터는 각각 400/503을 반환한다.
 - 결제 이후 상대 비공개/차단은 refund_pending으로 기록한다. 실제 환불 실행과 재시도 작업은 아직 미구현이다.
 - 비완료 이벤트, 취소/환불 웹훅, 운영 오류 재시도 및 관리자 처리는 실제 명세에 맞춰 추가해야 한다.
 
 아직 제공하지 않는 것
-- Next.js HTTP 라우트와 화면, 실제 Groble 검증/결제 연결, Supabase DB/RLS/Realtime 어댑터.
-- 대화 목록/받은 요청 목록, 차단·신고 생성 API, 요청/메시지 속도 제한, 운영 환불 처리.
+- 실제 앱에 탑재한 Next.js 라우트와 화면, 실제 Groble 검증/결제 연결, Supabase DB/RLS/Realtime 어댑터.
+- 차단·신고 생성 API, 요청/메시지 속도 제한, 운영 환불 처리.
 - 현재 차단은 요청/수락/메시지/기록 조회를 거부한다. 기존 채팅방의 환불 후 존속 정책은 팀 합의 후 반영한다.
 - 프로필 무료 공개도 생년월일·학교 이메일·전체 사주 원문 공개를 뜻하지 않는다.
 
@@ -76,3 +122,15 @@ Groble 연결 전 필요한 사항
 - 공통 프로젝트와 충돌하지 않도록 독립 패키지로 작성했다. 루트 앱 초기 설정은 변경하지 않았다.
 - 팀 초기 파일은 repo-init/에 있으며 C 모듈은 루트 contracts/ 및 packages/payment-chat/에 있다.
 - A의 실제 앱 생성 이후 import와 실행 설정을 연결한다.
+
+검증 범위
+- 동작 테스트 39개 및 개발 중 TypeScript strict 정적 검사를 통과했다.
+- 가짜 세션/결제/DB로 브라우저 호출 함수 → HTTP 어댑터 → 핵심 로직까지 검증했다.
+- 실제 브라우저 UI, Supabase 인증/RLS, Groble 결제, 네트워크 Realtime 검증은 아직 하지 않았다.
+- 정적 검사 도구는 공통 프로젝트 의존성을 임의로 바꾸지 않도록 별도 작업 캐시에서 실행했다.
+  A의 TypeScript/Node 설정 수령 후 공통 typecheck 스크립트에 통합한다.
+
+공식 연동 참고
+https://nextjs.org/docs/app/api-reference/file-conventions/route
+https://supabase.com/docs/reference/javascript/auth-getuser
+https://supabase.com/docs/guides/auth/server-side/creating-a-client

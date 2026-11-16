@@ -1,4 +1,4 @@
-import type { ChatMessage, OrderStatus } from "../../../contracts/payment-chat.ts";
+import type { ChatMessage, OrderStatus, ChatRequestResponse, ConversationResponse } from "../../../contracts/payment-chat.ts";
 
 /** HTTP 입력이 아닌 서버에서 검증한 로그인 세션에서 생성한다. */
 export interface Actor { userId: string }
@@ -12,14 +12,8 @@ export interface Order {
   status: OrderStatus;
 }
 export interface MatchResult { id: string; userId: string; targetId: string }
-export interface ChatRequest {
-  id: string;
-  from: string;
-  to: string;
-  orderId: string;
-  status: "pending" | "accepted" | "rejected";
-}
-export interface Conversation { id: string; members: [string, string] }
+export type ChatRequest = ChatRequestResponse;
+export type Conversation = ConversationResponse;
 
 /** 검증기가 원문 서명과 제공자 이벤트를 확인한 뒤 반환하는 내부 형식. */
 export interface CompletedPayment {
@@ -32,7 +26,11 @@ export interface CompletedPayment {
 export interface PaymentGateway {
   productId: string;
   checkoutUrl(reference: string): string;
-  /** 유효한 완료 이벤트만 반환한다. 잘못된 서명/이벤트는 예외로 거부한다. */
+  /**
+   * 유효한 완료 이벤트만 반환한다. 잘못된 서명/이벤트는
+   * ServiceError("INVALID_WEBHOOK", ...)로 거부한다.
+   * 일시적인 제공자 장애는 ServiceError("PROVIDER_UNAVAILABLE", ...)로 구분한다.
+   */
   verifyCompleted(rawBody: Uint8Array, headers: Headers): Promise<CompletedPayment>;
 }
 
@@ -54,9 +52,13 @@ export interface Transaction {
   blocked(a: string, b: string): Promise<boolean>;
   request(id: string): Promise<ChatRequest | undefined>;
   requestForPair(from: string, to: string): Promise<ChatRequest | undefined>;
+  /** 본인이 주고받은 요청만, 차단 제외 후 최신순 100개. 커서 소유권도 검증한다. */
+  requestsForUser(userId: string, afterId?: string): Promise<ChatRequest[]>;
   saveRequest(request: ChatRequest): Promise<void>;
   conversation(id: string): Promise<Conversation | undefined>;
   conversationForPair(a: string, b: string): Promise<Conversation | undefined>;
+  /** 본인이 참여한 방만, 차단 제외 후 최신순 100개. 커서 소유권도 검증한다. */
+  conversationsForUser(userId: string, afterId?: string): Promise<Conversation[]>;
   saveConversation(conversation: Conversation): Promise<void>;
   saveMessage(message: ChatMessage): Promise<void>;
   /** afterId가 해당 대화에 속하는지 검증하고 시각과 ID로 정렬하여 최대 100개를 반환한다. */
