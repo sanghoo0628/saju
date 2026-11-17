@@ -2268,3 +2268,48 @@ button svg {
 .chat-demo-bar > span {
   color: #8f7985;
 }
+
+/* Persistent recovery actions remain visible until the user succeeds or dismisses them. */
+.action-feedback,
+.list-feedback,
+.chat-feedback {
+  padding: 14px;
+  border: 1px solid #e7dbe0;
+  border-radius: 10px;
+  background: #fff8fa;
+  color: var(--wine);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.action-feedback {
+  margin-block: 16px;
+}
+.list-feedback {
+  margin: 12px;
+}
+.chat-feedback {
+  margin: 8px 24px;
+}
+.action-feedback p,
+.list-feedback p,
+.chat-feedback p {
+  margin: 0 0 10px;
+}
+.order-reference {
+  font-size: 11px;
+  color: #806774;
+  line-height: 1.6;
+}
+.order-reference span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.delayed-demo {
+  margin-top: 10px;
+}
+.segmented {
+  flex-wrap: wrap;
+}
+.segmented button {
+  flex-basis: 40%;
+}

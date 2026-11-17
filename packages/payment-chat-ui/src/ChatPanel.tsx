@@ -36,7 +36,13 @@ function Conversation({
   const [timeline] = useState(() => createMessageTimeline(room.id));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [sendError, setSendError] = useState("");
+  const [replyError, setReplyError] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const accessDenied = useRef(false);
+  const reload = useRef<() => void>(() => {});
+  const replyingRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -48,8 +54,25 @@ function Conversation({
     active.current = true;
     const controller = new AbortController();
     let inProgress = false;
+    function deny(error: unknown) {
+      if (
+        !(error instanceof PaymentChatClientError) ||
+        ![401, 403, 404].includes(error.status)
+      )
+        return false;
+      accessDenied.current = true;
+      timeline.clear();
+      setMessages([]);
+      setAccessError(
+        error.status === 401
+          ? "로그인이 만료됐어요. 다시 로그인한 뒤 대화를 열어주세요."
+          : "이 대화에 접근할 수 없어요. 대화 목록에서 상태를 확인해주세요.",
+      );
+      return true;
+    }
     async function load() {
-      if (inProgress) return;
+      if (inProgress || accessDenied.current || controller.signal.aborted)
+        return;
       inProgress = true;
       try {
         for (let i = 0; i < 10; i++) {
@@ -59,28 +82,35 @@ function Conversation({
             token.afterId,
             controller.signal,
           );
-          if (!active.current || controller.signal.aborted) return;
+          if (
+            !active.current ||
+            controller.signal.aborted ||
+            accessDenied.current
+          )
+            return;
           timeline.appendHistory(page, token);
           setMessages(timeline.snapshot().messages);
-          setError("");
+          setHistoryError("");
           if (page.length < 100) break;
         }
       } catch (err) {
         if (!controller.signal.aborted && active.current) {
-          setError("대화를 불러오지 못했어요. 잠시 후 다시 확인할게요.");
-          if (
-            err instanceof PaymentChatClientError &&
-            [401, 403].includes(err.status)
-          ) {
-            timeline.clear();
-            setMessages([]);
-          }
+          if (!deny(err))
+            setHistoryError(
+              "대화를 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
+            );
         }
       } finally {
         inProgress = false;
-        if (active.current) setLoading(false);
+        if (active.current && !controller.signal.aborted) setLoading(false);
       }
     }
+    reload.current = () => {
+      if (!accessDenied.current && !controller.signal.aborted) {
+        setLoading(true);
+        void load();
+      }
+    };
     void load();
     const timer = setInterval(() => {
       void load();
@@ -99,6 +129,7 @@ function Conversation({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", reconnect);
       timeline.clear();
+      reload.current = () => {};
     };
   }, [api, room.id, timeline]);
   useEffect(() => {
@@ -106,38 +137,59 @@ function Conversation({
   }, [messages.length]);
   async function send() {
     const body = draft.trim();
-    if (!body || sendingRef.current) return;
+    if (!body || sendingRef.current || accessError || loading || historyError)
+      return;
     sendingRef.current = true;
     setSending(true);
-    setError("");
+    setSendError("");
     const controller = (sendController.current = new AbortController());
     try {
       const result = await api.sendMessage(room.id, body, controller.signal);
-      if (!active.current || controller.signal.aborted) return;
+      if (!active.current || controller.signal.aborted || accessDenied.current)
+        return;
       timeline.receive(result);
       setMessages(timeline.snapshot().messages);
       setDraft("");
-    } catch {
-      if (active.current && !controller.signal.aborted)
-        setError(
-          "전송을 확인하지 못했어요. 대화 기록을 확인한 뒤 다시 시도해주세요.",
-        );
+    } catch (error) {
+      if (active.current && !controller.signal.aborted) {
+        if (
+          error instanceof PaymentChatClientError &&
+          [401, 403, 404].includes(error.status)
+        ) {
+          accessDenied.current = true;
+          timeline.clear();
+          setMessages([]);
+          setAccessError(
+            error.status === 401
+              ? "로그인이 만료됐어요. 다시 로그인해주세요."
+              : "이 대화에 메시지를 보낼 수 없어요. 대화 목록에서 상태를 확인해주세요.",
+          );
+        } else
+          setSendError(
+            "전송 여부를 확인하지 못했어요. 입력한 내용은 보관했어요. 중복 전송을 피하려면 대화 기록을 확인한 뒤 다시 보내주세요.",
+          );
+      }
     } finally {
       sendingRef.current = false;
       if (active.current) setSending(false);
     }
   }
   async function reply() {
+    if (replyingRef.current || accessError) return;
+    replyingRef.current = true;
     setReplying(true);
+    setReplyError("");
     try {
       const message = await onReply(room.id);
-      if (active.current) {
+      if (active.current && !accessDenied.current) {
         timeline.receive(message);
         setMessages(timeline.snapshot().messages);
       }
     } catch {
-      if (active.current) setError("답장 체험을 실행하지 못했어요.");
+      if (active.current)
+        setReplyError("답장 체험을 실행하지 못했어요. 다시 시도해주세요.");
     } finally {
+      replyingRef.current = false;
       if (active.current) setReplying(false);
     }
   }
@@ -147,6 +199,7 @@ function Conversation({
         className="message-scroll"
         ref={scroll}
         aria-label="대화 내용"
+        aria-busy={loading}
         role="log"
         aria-live="polite"
       >
@@ -175,12 +228,41 @@ function Conversation({
           </div>
         ))}
       </div>
-      {error ? (
+      {accessError ? (
         <p className="chat-error" role="alert">
-          {error}
+          {accessError}
         </p>
       ) : null}
-      {!messages.length && !loading ? (
+      {historyError && !accessError ? (
+        <div className="chat-feedback" role="alert">
+          <p>{historyError}</p>
+          <button
+            className="secondary"
+            disabled={loading}
+            onClick={() => reload.current()}
+          >
+            {loading ? "확인 중" : "대화 다시 불러오기"}
+          </button>
+        </div>
+      ) : null}
+      {sendError && !accessError ? (
+        <div className="chat-feedback" role="alert">
+          <p>{sendError}</p>
+          <button
+            className="secondary"
+            disabled={loading}
+            onClick={() => reload.current()}
+          >
+            대화 기록 확인
+          </button>
+        </div>
+      ) : null}
+      {replyError && !accessError ? (
+        <p className="chat-error" role="alert">
+          {replyError}
+        </p>
+      ) : null}
+      {!messages.length && !loading && !historyError && !accessError ? (
         <div className="icebreakers">
           <span>첫인사가 고민된다면</span>
           {["안녕하세요! 반가워요 :)", "요즘 즐겨 듣는 노래가 있나요?"].map(
@@ -208,7 +290,7 @@ function Conversation({
           value={draft}
           maxLength={2000}
           rows={1}
-          disabled={sending}
+          disabled={sending || loading || !!historyError || !!accessError}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (
@@ -225,7 +307,13 @@ function Conversation({
         <button
           className="send-button"
           type="submit"
-          disabled={!draft.trim() || sending}
+          disabled={
+            !draft.trim() ||
+            sending ||
+            loading ||
+            !!historyError ||
+            !!accessError
+          }
           aria-label="메시지 보내기"
         >
           {sending ? (
@@ -238,7 +326,7 @@ function Conversation({
       <div className="chat-demo-bar">
         <span>DEMO · 상대방은 가상 인물이에요</span>
         <button
-          disabled={replying}
+          disabled={replying || !!accessError}
           onClick={() => {
             void reply();
           }}
@@ -255,6 +343,9 @@ export function ChatPanel({
   rooms,
   requests,
   selection,
+  listLoading,
+  listError,
+  onReload,
   onSelect,
   onAccept,
   onReject,
@@ -266,6 +357,9 @@ export function ChatPanel({
   rooms: ConversationResponse[];
   requests: ChatRequestResponse[];
   selection: ChatSelection;
+  listLoading: boolean;
+  listError: string;
+  onReload: () => void;
   onSelect: (value: ChatSelection) => void;
   onAccept: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
@@ -289,11 +383,32 @@ export function ChatPanel({
   const other = profiles.find((p) => p.id === otherId);
   return (
     <div className={`chat-layout ${selection ? "has-selection" : ""}`}>
-      <aside className="conversation-list" aria-label="대화 목록">
+      <aside
+        className="conversation-list"
+        aria-label="대화 목록"
+        aria-busy={listLoading}
+      >
         <div className="list-title">
           <h2>나의 대화</h2>
           <span>{rooms.length}</span>
         </div>
+        {listLoading ? (
+          <div className="list-feedback">
+            <Busy text="대화 목록 불러오는 중" />
+          </div>
+        ) : null}
+        {listError ? (
+          <div className="list-feedback" role="alert">
+            <p>{listError}</p>
+            <button
+              className="secondary"
+              disabled={listLoading}
+              onClick={onReload}
+            >
+              목록 다시 불러오기
+            </button>
+          </div>
+        ) : null}
         {pending.length ? (
           <div className="list-section-label">
             대화 요청 <span>{pending.length}</span>
@@ -344,13 +459,13 @@ export function ChatPanel({
               </button>
             );
           })
-        ) : (
+        ) : !listLoading && !listError ? (
           <p className="list-empty">
             아직 시작한 대화가 없어요.
             <br />
             마음이 닿는 인연을 찾아보세요.
           </p>
-        )}
+        ) : null}
         <div className="list-footnote">
           <Icon name="lock" size={14} />
           대화는 참여한 두 사람만 볼 수 있어요.

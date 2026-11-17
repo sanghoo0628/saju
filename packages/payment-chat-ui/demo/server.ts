@@ -62,6 +62,31 @@ export function demoApi(): Plugin {
       );
       if (!order)
         throw new ServiceError("FORBIDDEN", "본인 주문만 체험할 수 있습니다.");
+      if (
+        !["success", "delay", "refund_pending", "cancelled"].includes(body.mode)
+      )
+        throw new ServiceError(
+          "INVALID_REQUEST",
+          "지원하지 않는 데모 시나리오입니다.",
+        );
+      if (body.mode === "cancelled") {
+        await store.repository.transaction(async (tx) => {
+          const current = await tx.order(order.id);
+          if (!current || current.status !== "pending")
+            throw new ServiceError(
+              "INVALID_REQUEST",
+              "미결제 주문만 취소 체험할 수 있습니다.",
+            );
+          await tx.saveOrder({ ...current, status: "cancelled" });
+        });
+        return Response.json({ status: "cancelled" });
+      }
+      if (body.mode === "refund_pending" && order.status === "pending") {
+        // Demo only: an unavailable target makes the existing service retain payment for refund review.
+        store.state.active = store.state.active.filter(
+          (id) => id !== order.targetId,
+        );
+      }
       if (body.mode === "delay") return Response.json({ status: "pending" });
       const result = await service.paymentWebhook(
         new TextEncoder().encode(

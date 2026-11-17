@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createBrowserClient } from "../../payment-chat/src/client.ts";
+import {
+  createBrowserClient,
+  PaymentChatClientError,
+} from "../../payment-chat/src/client.ts";
 import { createCheckoutFlow } from "../../payment-chat/src/checkout-flow.ts";
 import type { CheckoutState } from "../../payment-chat/src/checkout-flow.ts";
 import type {
@@ -30,22 +33,56 @@ export default function App() {
   const [selection, setSelection] = useState<ChatSelection>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const listController = useRef<AbortController | null>(null);
   const [checkout, setCheckout] = useState<CheckoutState>({ kind: "idle" });
   const flow = useRef<ReturnType<typeof createCheckoutFlow> | null>(null);
   const actionRef = useRef(false);
   const paymentGeneration = useRef(0);
   function navigate(next: Nav) {
     setNav(next);
+    setActionError("");
     window.scrollTo({ top: 0, behavior: "auto" });
   }
   const refresh = useCallback(async () => {
-    const [nextRequests, nextRooms] = await Promise.all([
-      api.requests(),
-      api.conversations(),
-    ]);
-    setRequests(nextRequests);
-    setRooms(nextRooms);
+    listController.current?.abort();
+    const controller = new AbortController();
+    listController.current = controller;
+    setListLoading(true);
+    setListError("");
+    try {
+      const [nextRequests, nextRooms] = await Promise.all([
+        api.requests(undefined, controller.signal),
+        api.conversations(undefined, controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      setRequests(nextRequests);
+      setRooms(nextRooms);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (
+        error instanceof PaymentChatClientError &&
+        [401, 403].includes(error.status)
+      ) {
+        setRequests([]);
+        setRooms([]);
+        setSelection(null);
+      }
+      setListError(
+        error instanceof PaymentChatClientError && error.status === 401
+          ? "로그인이 만료됐어요. 다시 로그인한 뒤 확인해주세요."
+          : "대화 목록을 불러오지 못했어요. 연결을 확인하고 다시 시도해주세요.",
+      );
+    } finally {
+      if (!controller.signal.aborted) setListLoading(false);
+    }
   }, []);
+  useEffect(() => {
+    void refresh();
+    return () => listController.current?.abort();
+  }, [refresh]);
   useEffect(() => {
     const instance = createCheckoutFlow({
       client: api,
@@ -55,20 +92,7 @@ export default function App() {
     });
     flow.current = instance;
     const unsubscribe = instance.subscribe(setCheckout);
-    let mounted = true;
-    void Promise.all([api.requests(), api.conversations()])
-      .then(([nextRequests, nextRooms]) => {
-        if (mounted) {
-          setRequests(nextRequests);
-          setRooms(nextRooms);
-        }
-      })
-      .catch(() => {
-        if (mounted)
-          setNotice("데모 서버에 연결하지 못했어요. 새로고침해 주세요.");
-      });
     return () => {
-      mounted = false;
       unsubscribe();
       instance.dispose();
     };
@@ -97,6 +121,7 @@ export default function App() {
   };
   function connect(profile: Profile) {
     paymentGeneration.current++;
+    setActionError("");
     setDetail(null);
     const room = rooms.find((item) => item.members.includes(profile.id));
     const request = requests.find(
@@ -119,19 +144,26 @@ export default function App() {
   async function action(work: () => Promise<void>) {
     if (actionRef.current) return;
     actionRef.current = true;
+    const generation = paymentGeneration.current;
     setBusy(true);
+    setActionError("");
     try {
       await work();
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "잠시 후 다시 시도해주세요.",
+      if (generation !== paymentGeneration.current) return;
+      setActionError(
+        error instanceof PaymentChatClientError
+          ? error.message
+          : "요청을 확인하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
       );
     } finally {
       actionRef.current = false;
       setBusy(false);
     }
   }
-  async function confirm(mode: "success" | "delay") {
+  async function confirm(
+    mode: "success" | "delay" | "refund_pending" | "cancelled",
+  ) {
     if (checkout.kind !== "payment_required") return;
     const orderId = checkout.orderId;
     const token = paymentGeneration.current;
@@ -160,6 +192,13 @@ export default function App() {
     });
   }
   async function recheck() {
+    if (!("orderId" in checkout) || !checkout.orderId) return;
+    const orderId = checkout.orderId;
+    await action(async () => {
+      await flow.current?.resume(orderId);
+    });
+  }
+  async function finishDelayedDemo() {
     if (checkout.kind !== "confirmation_pending") return;
     const orderId = checkout.orderId;
     const token = paymentGeneration.current;
@@ -168,6 +207,15 @@ export default function App() {
       if (token === paymentGeneration.current)
         await flow.current?.resume(orderId);
     });
+  }
+  async function retryCheckout() {
+    if (checkout.kind !== "error") return;
+    if (checkout.orderId) {
+      await recheck();
+      return;
+    }
+    if (checkout.matchResultId)
+      await flow.current?.start(checkout.matchResultId);
   }
   const accept = async (id: string) =>
     action(async () => {
@@ -299,6 +347,14 @@ export default function App() {
             <span className="campus-label">KOREA UNIVERSITY</span>
           </div>
         </header>
+        {actionError && !payment ? (
+          <div className="action-feedback" role="alert">
+            <p>{actionError}</p>
+            <button className="secondary" onClick={() => setActionError("")}>
+              닫기
+            </button>
+          </div>
+        ) : null}
         {nav === "discover" ? (
           <>
             <section className="hero">
@@ -459,7 +515,15 @@ export default function App() {
               rooms={rooms}
               requests={requests}
               selection={selection}
-              onSelect={setSelection}
+              listLoading={listLoading}
+              listError={listError}
+              onReload={() => {
+                void refresh();
+              }}
+              onSelect={(value) => {
+                setActionError("");
+                setSelection(value);
+              }}
               onAccept={accept}
               onReject={reject}
               onDemoAccept={simulateAccept}
@@ -543,6 +607,13 @@ export default function App() {
           profile={payment}
           state={checkout}
           busy={busy}
+          actionError={actionError}
+          onRetry={() => {
+            void retryCheckout();
+          }}
+          onFinishDelayedDemo={() => {
+            void finishDelayedDemo();
+          }}
           onClose={() => {
             paymentGeneration.current++;
             setPayment(null);
