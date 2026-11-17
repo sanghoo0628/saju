@@ -1,0 +1,22 @@
+{
+  "name": "ku-saju-matching",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:payments": "node --test packages/payment-chat/test/*.test.ts",
+    "test:all": "npm test && npm run test:payments",
+    "demo:dev": "npm run dev --prefix packages/payment-chat-ui",
+    "demo:build": "npm run build --prefix packages/payment-chat-ui",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0"
+  }
+}

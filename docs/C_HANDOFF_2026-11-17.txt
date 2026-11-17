@@ -1,6 +1,13 @@
 고려대학교 사주 매칭 웹 C 담당 진행 상황
 저장일 2026년 11월 17일 한국 시간
 
+최신 갱신
+B 672f5cb의 수정 코드와 검증한 권한/타입/테스트 수정안을 C 브랜치에 통합했다.
+현재 C 브랜치에서 테스트 146개, 엄격 타입 검사와 화면 빌드를 통과했다.
+최신 상태와 실행 방법은 docs/B_C_INTEGRATION_2026-11-17.txt를 따른다.
+아래 본문은 B와 C 통합 이전에 저장한 기록이며, B 수정 코드가 없다는 설명은 과거 상태다.
+실제 Supabase·Groble·A 로그인 연결은 여전히 후속 작업이다.
+
 1 현재 프로젝트와 역할
 GitHub: https://github.com/sanghoo0628/saju.git
 로컬 레포: /Users/munjeong-u/Documents/Codex/2026-11-16/new-chat/saju

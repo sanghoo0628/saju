@@ -62,7 +62,7 @@ async function bodyBytes(request: Request, max: number): Promise<Uint8Array> {
 async function objectBody(request: Request, fields: string[], optionalEmpty = false): Promise<Record<string,unknown>> {
   const bytes = await bodyBytes(request, JSON_LIMIT);
   if (optionalEmpty && bytes.byteLength === 0) return {};
-  if (request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json")
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json")
     fail("UNSUPPORTED_MEDIA_TYPE", "application/json 형식이 필요합니다.");
   let body: unknown;
   try { body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
