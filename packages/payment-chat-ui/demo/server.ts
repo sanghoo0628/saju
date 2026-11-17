@@ -83,9 +83,8 @@ export function demoApi(): Plugin {
       }
       if (body.mode === "refund_pending" && order.status === "pending") {
         // Demo only: an unavailable target makes the existing service retain payment for refund review.
-        store.state.active = store.state.active.filter(
-          (id) => id !== order.targetId,
-        );
+        if (order.targetId)
+          await store.setProfileAvailable(order.targetId, false);
       }
       if (body.mode === "delay") return Response.json({ status: "pending" });
       const result = await service.paymentWebhook(

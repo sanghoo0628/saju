@@ -5,6 +5,11 @@ import {
   createBrowserClient,
   PaymentChatClientError,
 } from "../../payment-chat/src/client.ts";
+import {
+  createInboxSession,
+  reconcileInboxSelection,
+  type InboxSession,
+} from "../../payment-chat/src/inbox-session.ts";
 import { createCheckoutFlow } from "../../payment-chat/src/checkout-flow.ts";
 import type { CheckoutState } from "../../payment-chat/src/checkout-flow.ts";
 import type {
@@ -44,7 +49,8 @@ export default function App() {
   const [actionError, setActionError] = useState("");
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
-  const listController = useRef<AbortController | null>(null);
+  const inbox = useRef<InboxSession | null>(null);
+  const [listHasMore, setListHasMore] = useState(false);
   const [checkout, setCheckout] = useState<CheckoutState>({ kind: "idle" });
   const flow = useRef<ReturnType<typeof createCheckoutFlow> | null>(null);
   const actionRef = useRef(false);
@@ -55,42 +61,34 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
   const refresh = useCallback(async () => {
-    listController.current?.abort();
-    const controller = new AbortController();
-    listController.current = controller;
-    setListLoading(true);
-    setListError("");
-    try {
-      const [nextRequests, nextRooms] = await Promise.all([
-        api.requests(undefined, controller.signal),
-        api.conversations(undefined, controller.signal),
-      ]);
-      if (controller.signal.aborted) return;
-      setRequests(nextRequests);
-      setRooms(nextRooms);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      if (
-        error instanceof PaymentChatClientError &&
-        [401, 403].includes(error.status)
-      ) {
-        setRequests([]);
-        setRooms([]);
-        setSelection(null);
-      }
-      setListError(
-        error instanceof PaymentChatClientError && error.status === 401
-          ? "로그인이 만료됐어요. 다시 로그인한 뒤 확인해주세요."
-          : "대화 목록을 불러오지 못했어요. 연결을 확인하고 다시 시도해주세요.",
-      );
-    } finally {
-      if (!controller.signal.aborted) setListLoading(false);
-    }
+    await inbox.current?.refresh(true);
   }, []);
   useEffect(() => {
-    void refresh();
-    return () => listController.current?.abort();
-  }, [refresh]);
+    const instance = createInboxSession({ userId: MY_ID, client: api });
+    inbox.current = instance;
+    const unsubscribe = instance.subscribe((state) => {
+      setRequests(state.requests);
+      setRooms(state.rooms);
+      setListLoading(state.loading);
+      setListError(state.error);
+      setListHasMore(
+        !!(state.requests.length || state.rooms.length) &&
+          (!state.requestsComplete || !state.roomsComplete),
+      );
+      setSelection((current) => reconcileInboxSelection(current, MY_ID, state));
+    });
+    instance.start();
+    const focus = () => {
+      if (document.visibilityState === "visible") void instance.refresh(true);
+    };
+    document.addEventListener("visibilitychange", focus);
+    return () => {
+      unsubscribe();
+      instance.dispose();
+      if (inbox.current === instance) inbox.current = null;
+      document.removeEventListener("visibilitychange", focus);
+    };
+  }, []);
   useEffect(() => {
     const instance = createCheckoutFlow({
       client: api,
@@ -118,13 +116,11 @@ export default function App() {
       return "대화 이어가기";
     if (incoming.some((r) => r.from === profile.id))
       return "받은 대화 요청 보기";
-    if (
-      requests.some(
-        (r) =>
-          r.from === MY_ID && r.to === profile.id && r.status === "pending",
-      )
-    )
-      return "보낸 요청 확인하기";
+    const sent = requests.find((r) => r.from === MY_ID && r.to === profile.id);
+    if (sent)
+      return sent.status === "pending"
+        ? "보낸 요청 확인하기"
+        : "보낸 요청 결과 보기";
     return "대화 시작 · 500원";
   };
   function connect(profile: Profile) {
@@ -132,11 +128,13 @@ export default function App() {
     setActionError("");
     setDetail(null);
     const room = rooms.find((item) => item.members.includes(profile.id));
-    const request = requests.find(
-      (item) =>
-        (item.from === profile.id || item.to === profile.id) &&
-        item.status === "pending",
-    );
+    const request =
+      requests.find(
+        (item) =>
+          (item.from === profile.id || item.to === profile.id) &&
+          item.status === "pending",
+      ) ??
+      requests.find((item) => item.from === MY_ID && item.to === profile.id);
     if (room || request) {
       navigate("chat");
       setSelection(
@@ -528,6 +526,7 @@ export default function App() {
               selection={selection}
               listLoading={listLoading}
               listError={listError}
+              listHasMore={listHasMore}
               onReload={() => {
                 void refresh();
               }}

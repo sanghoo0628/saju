@@ -196,3 +196,35 @@ it("shows connection status when a realtime source is supplied without adding de
   expect(html).toContain("실시간 연결 중");
   expect(html).not.toContain("상대 답장 체험");
 });
+
+it("shows the recipient's rejection result without a waiting message or simulated retry", () => {
+  const html = panel({
+    currentUserId: PEER,
+    requests: [{ ...request, status: "rejected" }],
+    demo: { onAcceptRequest: async () => {} },
+  });
+  expect(html).toContain("이번 요청은 수락되지 않았어요");
+  expect(html).toContain("상대가 거절한 요청이에요");
+  expect(html).not.toContain("수락을 기다려요");
+  expect(html).not.toContain("상대 수락 체험");
+});
+it("shows accepted requests awaiting their room with a read-only refresh action", () => {
+  const html = panel({
+    rooms: [],
+    requests: [{ ...request, status: "accepted" }],
+  });
+  expect(html).toContain("대화 요청이 수락됐어요");
+  expect(html).toContain("대화방 다시 확인");
+  expect(html).not.toContain("수락을 기다려요");
+  expect(html).not.toContain("수락하고 대화하기");
+});
+it("distinguishes a request I rejected from one the peer rejected", () => {
+  const html = panel({ requests: [{ ...request, status: "rejected" }] });
+  expect(html).toContain("대화 요청을 거절했어요");
+  expect(html).toContain("내가 거절한 요청이에요");
+  expect(html).not.toContain("수락하고 대화하기");
+});
+it("makes a capped list visible to the user instead of implying all history was loaded", () => {
+  const html = panel({ listHasMore: true });
+  expect(html).toContain("목록이 많아 최근 내역부터 표시했어요");
+});

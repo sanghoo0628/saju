@@ -11,11 +11,12 @@ import {
   createMessageSession,
   type MessageSession,
 } from "../../payment-chat/src/message-session.ts";
+import type { InboxSelection } from "../../payment-chat/src/inbox-session.ts";
 import type { MessageSource } from "../../payment-chat/src/message-source.ts";
 import type { ChatProfile } from "./types.ts";
 import { Avatar, Busy, Icon } from "./ui.tsx";
 
-export type ChatSelection = { kind: "room" | "request"; id: string } | null;
+export type ChatSelection = InboxSelection;
 type Api = ReturnType<typeof createBrowserClient>;
 const time = (value: string) =>
   new Intl.DateTimeFormat("ko-KR", {
@@ -338,6 +339,7 @@ export function ChatPanel({
   selection,
   listLoading,
   listError,
+  listHasMore = false,
   onReload,
   onSelect,
   onAccept,
@@ -357,6 +359,7 @@ export function ChatPanel({
   selection: ChatSelection;
   listLoading: boolean;
   listError: string;
+  listHasMore?: boolean;
   onReload: () => void;
   onSelect: (value: ChatSelection) => void;
   onAccept: (id: string) => Promise<void>;
@@ -409,6 +412,11 @@ export function ChatPanel({
               목록 다시 불러오기
             </button>
           </div>
+        ) : null}
+        {listHasMore ? (
+          <p className="list-feedback" role="status">
+            목록이 많아 최근 내역부터 표시했어요.
+          </p>
         ) : null}
         {pending.length ? (
           <div className="list-section-label">
@@ -521,20 +529,44 @@ export function ChatPanel({
             </div>
             <span className="eyebrow">A NEW CONNECTION</span>
             <h2>
-              {invitation.to === currentUserId
-                ? `${other?.nickname ?? "상대방"}님이 인사를 건넸어요`
-                : `${other?.nickname ?? "상대방"}님의 수락을 기다려요`}
+              {invitation.status === "rejected"
+                ? invitation.to === currentUserId
+                  ? "대화 요청을 거절했어요"
+                  : "이번 요청은 수락되지 않았어요"
+                : invitation.status === "accepted"
+                  ? "대화 요청이 수락됐어요"
+                  : invitation.to === currentUserId
+                    ? `${other?.nickname ?? "상대방"}님이 인사를 건넸어요`
+                    : `${other?.nickname ?? "상대방"}님의 수락을 기다려요`}
             </h2>
             <p>
-              {invitation.to === currentUserId
-                ? "서로를 알아갈 작은 기회예요.\n마음이 괜찮다면 대화를 시작해보세요."
-                : "요청을 잘 전달했어요.\n상대가 수락하면 이곳에서 대화를 나눌 수 있어요."}
+              {invitation.status === "rejected"
+                ? invitation.to === currentUserId
+                  ? "이번 요청은 종료됐어요."
+                  : "상대방이 이번 요청을 수락하지 않았어요."
+                : invitation.status === "accepted"
+                  ? "대화방을 확인하고 있어요. 잠시만 기다려주세요."
+                  : invitation.to === currentUserId
+                    ? "서로를 알아갈 작은 기회예요.\n마음이 괜찮다면 대화를 시작해보세요."
+                    : "요청을 잘 전달했어요.\n상대가 수락하면 이곳에서 대화를 나눌 수 있어요."}
             </p>
             {invitation.status !== "pending" ? (
               <div className="soft-label">
-                {invitation.status === "rejected"
-                  ? "거절한 요청이에요"
-                  : "이미 수락한 요청이에요"}
+                {invitation.status === "rejected" ? (
+                  invitation.to === currentUserId ? (
+                    "내가 거절한 요청이에요"
+                  ) : (
+                    "상대가 거절한 요청이에요"
+                  )
+                ) : (
+                  <button
+                    className="secondary"
+                    disabled={busy || listLoading}
+                    onClick={onReload}
+                  >
+                    대화방 다시 확인
+                  </button>
+                )}
               </div>
             ) : invitation.to === currentUserId ? (
               <>

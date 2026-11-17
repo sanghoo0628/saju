@@ -150,6 +150,22 @@ export function createDemoStore() {
   };
   return {
     repository,
+    /** Demo-only profile changes share the transaction queue with background list reads. */
+    setProfileAvailable(userId: string, available: boolean): Promise<void> {
+      const operation = tail.then(() => {
+        state = {
+          ...state,
+          active: available
+            ? [...new Set([...state.active, userId])]
+            : state.active.filter((id) => id !== userId),
+        };
+      });
+      tail = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
+    },
     get state() {
       return state;
     },

@@ -1,5 +1,12 @@
 홍연 결제 및 채팅 화면
 
+최신: 요청·수락 자동 반영 (2026-11-18)
+- App.tsx는 inbox-session으로 주기적 요청/방 목록 조회와 선택 상태 정리를 수행한다.
+- 수락은 실제 방 조회 뒤 연결하며, 거절한 요청은 계속 대기 중으로 안내하지 않는다.
+- ChatPanel에 선택적인 listHasMore만 추가했다. 기존 필수 props는 유지했다.
+- 최신 연결 방법: docs/C_INBOX_SYNC_2026-11-18.txt
+- 총 251개 검사와 타입/화면 빌드 통과. 실제 외부 연결을 검증한 것은 아니다.
+
 최신: Realtime source 연결 준비 (2026-11-18)
 - ChatPanel에 선택적인 messageSource prop을 추가했다.
 - 인증된 Supabase 브라우저 클라이언트로 createSupabaseMessageSource(client)를 만들어 전달한다.
