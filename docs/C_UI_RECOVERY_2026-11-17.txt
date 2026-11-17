@@ -1,3 +1,6 @@
+최신 props는 docs/C_UI_LIVE_PROPS_2026-11-17.txt를 참고한다.
+아래는 오류 복구 보완 당시 기록이다.
+
 C 결제·채팅 화면 오류 복구 보완
 2026-11-17 / codex/c-payment-chat
 

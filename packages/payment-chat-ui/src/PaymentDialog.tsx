@@ -2,37 +2,49 @@
 
 import { useState } from "react";
 import type { CheckoutState } from "../../payment-chat/src/checkout-flow.ts";
-import type { Profile } from "./catalog.ts";
+import type { ChatProfile } from "./types.ts";
 import { Avatar, Busy, Icon, Modal } from "./ui.tsx";
+
+export type DemoPaymentMode =
+  | "success"
+  | "delay"
+  | "refund_pending"
+  | "cancelled";
+export type PaymentAction =
+  | { kind: "checkout"; onCheckout: () => void }
+  | {
+      kind: "demo";
+      onConfirm: (mode: DemoPaymentMode) => void;
+      onFinishDelayedPayment: () => void;
+    };
 
 export function PaymentDialog({
   profile,
   state,
   busy,
   onClose,
-  onConfirm,
+  paymentAction,
   onRequest,
   onRecheck,
   onRetry,
-  onFinishDelayedDemo,
   actionError,
 }: {
-  profile: Profile;
+  profile: ChatProfile;
   state: CheckoutState;
   busy: boolean;
   onClose: () => void;
-  onConfirm: (
-    mode: "success" | "delay" | "refund_pending" | "cancelled",
-  ) => void;
+  paymentAction: PaymentAction;
   onRequest: () => void;
   onRecheck: () => void;
   onRetry: () => void;
-  onFinishDelayedDemo: () => void;
   actionError: string;
 }) {
   const [mode, setMode] = useState<
     "success" | "delay" | "refund_pending" | "cancelled"
   >("success");
+  const demo = paymentAction.kind === "demo" ? paymentAction : undefined;
+  const existingRoom =
+    state.kind === "chat_available" && !!state.conversationId;
   const ready = state.kind === "chat_available";
   const waiting =
     state.kind === "checking" ||
@@ -49,7 +61,9 @@ export function PaymentDialog({
         {terminal
           ? "주문 상태를 확인해주세요"
           : ready
-            ? "이제, 인사를 건네볼까요?"
+            ? existingRoom
+              ? "대화를 이어가볼까요?"
+              : "이제, 인사를 건네볼까요?"
             : pending
               ? "결제를 확인하고 있어요"
               : "인연의 다음 장을 열어볼까요?"}
@@ -58,18 +72,18 @@ export function PaymentDialog({
         {terminal
           ? "이 주문으로는 대화를 요청할 수 없어요."
           : ready
-            ? "대화 요청을 보내면 상대방에게 전달돼요."
+            ? existingRoom
+              ? "추가 결제 없이 기존 대화로 이동해요."
+              : "대화 요청을 보내면 상대방에게 전달돼요."
             : pending
               ? "확인이 늦어져도 다시 결제하지 않아도 돼요."
               : "마음이 닿은 한 사람에게, 가벼운 첫인사를."}
       </p>
       <div className="payment-person">
-        <Avatar name={profile.name} tone={profile.tone} small />
+        <Avatar name={profile.nickname} tone={profile.tone} small />
         <div>
-          <strong>{profile.name}</strong>
-          <span>
-            {profile.major} · {profile.year}
-          </span>
+          <strong>{profile.nickname}</strong>
+          <span>{profile.major ?? "공개된 학과 정보가 없어요"}</span>
         </div>
         <span className="match-pill">나의 추천 인연</span>
       </div>
@@ -126,7 +140,7 @@ export function PaymentDialog({
         </button>
       ) : ready ? (
         <button className="primary wide" onClick={onRequest}>
-          대화 요청 보내기
+          {existingRoom ? "대화 이어가기" : "대화 요청 보내기"}
           <Icon name="arrow" size={18} />
         </button>
       ) : pending ? (
@@ -144,28 +158,36 @@ export function PaymentDialog({
           환불 상태 다시 확인
         </button>
       ) : state.kind === "payment_required" ? (
-        <button className="primary wide" onClick={() => onConfirm(mode)}>
+        <button
+          className="primary wide"
+          onClick={() => {
+            if (paymentAction.kind === "demo") paymentAction.onConfirm(mode);
+            else paymentAction.onCheckout();
+          }}
+        >
           <Icon name="lock" size={17} />
-          500원 결제 체험하기
+          {demo ? "500원 결제 체험하기" : "500원 결제하기"}
         </button>
       ) : (
         <button className="secondary wide" onClick={onClose}>
           닫기
         </button>
       )}
-      {pending ? (
+      {pending && demo ? (
         <button
           className="secondary wide delayed-demo"
           disabled={busy}
-          onClick={onFinishDelayedDemo}
+          onClick={demo.onFinishDelayedPayment}
         >
           지연된 데모 결제 완료하기
         </button>
       ) : null}
-      <p className="demo-fineprint">
-        데모 화면이에요. 실제 결제나 청구가 발생하지 않아요.
-      </p>
-      {state.kind === "payment_required" ? (
+      {demo ? (
+        <p className="demo-fineprint">
+          데모 화면이에요. 실제 결제나 청구가 발생하지 않아요.
+        </p>
+      ) : null}
+      {state.kind === "payment_required" && demo ? (
         <details className="scenario">
           <summary>데모 시나리오 선택</summary>
           <div className="segmented">

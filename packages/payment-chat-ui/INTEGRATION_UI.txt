@@ -1,5 +1,14 @@
 홍연 결제 및 채팅 화면
 
+최신: 실제 데이터 props 준비 (2026-11-17)
+- ChatPanel은 currentUserId와 B 공개 프로필 형식의 profiles를 받는다.
+- PaymentDialog도 userId/nickname/major를 사용하고 점수/학번을 요구하지 않는다.
+- 체험 기능은 명시적 demo props/paymentAction에만 표시한다.
+- 호출 예시와 변경 props: docs/C_UI_LIVE_PROPS_2026-11-17.txt
+- test:all 기존 165개 + 별도 test:ui 13개, 합계 178개 통과.
+- 아래의 과거 onDemoAccept/onReply/onConfirm 설명은 최신 문서의 demo/paymentAction을 따른다.
+- 실제 Auth/Groble/Realtime 연결은 아직 미완료다.
+
 2026-11-17 오류 복구 보완
 - 목록 로딩/실패 구분과 재시도, 결제의 동일 주문 재확인, 전송 오류/초안 유지,
   대화 접근 거부 처리, 환불 대기/취소 체험을 추가했다.
@@ -70,7 +79,7 @@ A와 실제 앱에 연결할 때
 4. 기존 C 서버 모듈에 실제 Groble 및 Supabase 어댑터를 연결하고, 공통 앱의 /api 라우트로 탑재한다.
 5. PaymentDialog의 onConfirm은 실제 결제창 이동으로 교체한다.
    복귀 화면은 저장한 주문 ID로 createCheckoutFlow.resume()를 호출한다.
-6. ChatPanel의 onDemoAccept/onReply와 데모 안내·체험 버튼은 제거하거나 운영 props에서 숨기도록 조정한다.
+6. ChatPanel의 demo props를 생략하면 체험 버튼/안내가 나타나지 않는다. PaymentDialog는 paymentAction.kind=checkout으로 전달한다.
    상대방의 실제 수락과 메시지를 Supabase Realtime으로 전달한다.
 7. 메시지의 snake_case DB 필드를 ChatMessage의 camelCase로 변환한다.
    메시지 전송 응답과 실시간 이벤트는 기존 createMessageTimeline으로 합쳐 중복 표시를 방지한다.

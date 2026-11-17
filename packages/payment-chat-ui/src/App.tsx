@@ -18,7 +18,15 @@ import { PaymentDialog } from "./PaymentDialog.tsx";
 import { Avatar, Icon, Modal } from "./ui.tsx";
 import { MY_ID, MY_SCORE, profiles, signed } from "./catalog.ts";
 import type { Profile } from "./catalog.ts";
+import type { ChatProfile } from "./types.ts";
 import { demoAction } from "./demo-client.ts";
+// Demo mapping stays outside reusable payment/chat components.
+const chatProfiles: ChatProfile[] = profiles.map((p) => ({
+  userId: p.id,
+  nickname: p.name,
+  major: p.major,
+  tone: p.tone,
+}));
 
 const api = createBrowserClient();
 type Nav = "discover" | "chat";
@@ -512,6 +520,9 @@ export default function App() {
               <span>수락한 두 사람만 나누는 이야기</span>
             </div>
             <ChatPanel
+              currentUserId={MY_ID}
+              profiles={chatProfiles}
+              demo={{ onAcceptRequest: simulateAccept, onReply: simulateReply }}
               rooms={rooms}
               requests={requests}
               selection={selection}
@@ -526,9 +537,7 @@ export default function App() {
               }}
               onAccept={accept}
               onReject={reject}
-              onDemoAccept={simulateAccept}
               api={api}
-              onReply={simulateReply}
               busy={busy}
             />
           </>
@@ -604,23 +613,26 @@ export default function App() {
       {payment ? (
         <PaymentDialog
           key={payment.id}
-          profile={payment}
+          profile={chatProfiles.find((p) => p.userId === payment.id)!}
+          paymentAction={{
+            kind: "demo",
+            onConfirm: (mode) => {
+              void confirm(mode);
+            },
+            onFinishDelayedPayment: () => {
+              void finishDelayedDemo();
+            },
+          }}
           state={checkout}
           busy={busy}
           actionError={actionError}
           onRetry={() => {
             void retryCheckout();
           }}
-          onFinishDelayedDemo={() => {
-            void finishDelayedDemo();
-          }}
           onClose={() => {
             paymentGeneration.current++;
             setPayment(null);
             flow.current?.reset();
-          }}
-          onConfirm={(mode) => {
-            void confirm(mode);
           }}
           onRequest={() => {
             void requestChat();

@@ -64,6 +64,12 @@ Node 24 이상이 필요합니다. `packages/payment-chat-ui`에서 `pnpm instal
 
 `npm run test:all`은 165개 검사를 실행합니다. 실제 `pg.Pool`의 TCP 왕복 검사는 PGlite를 사용합니다. 네이티브 PostgreSQL의 다중 연결 검사는 별도 `npm run test:postgres`로 실행합니다. 현재 Codex 환경에서는 공유 메모리 제한으로 이 별도 검사 10개를 실행하지 못했습니다. 실제 Supabase/Groble 연결 검증도 남아 있습니다.
 
+### 실제 데이터용 결제·채팅 UI
+
+재사용 컴포넌트는 로그인 사용자 ID와 B의 공개 프로필을 props로 받습니다. 체험 기능은 명시적으로 켰을 때만 표시합니다. 호출 방법은 [`C_UI_LIVE_PROPS_2026-11-17.txt`](./docs/C_UI_LIVE_PROPS_2026-11-17.txt)에 있습니다.
+
+화면 의존성을 설치한 뒤 `npm run test:ui`로 컴포넌트 렌더링 검사 13개를 실행할 수 있습니다. 기본 `test:all`의 165개와 별도이며, 실제 인증·결제 연결을 검증하는 테스트는 아닙니다.
+
 ### B와 C 통합 검증
 
 `npm test`는 B의 Vitest 및 DB 통합 검사를, `npm run test:payments`는 C의 Node 테스트를 실행합니다. 두 테스트 러너의 검색 범위는 분리했습니다. `npm run test:all`로 모두 실행할 수 있습니다.

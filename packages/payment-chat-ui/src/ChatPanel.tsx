@@ -11,7 +11,7 @@ import {
   PaymentChatClientError,
 } from "../../payment-chat/src/client.ts";
 import { createMessageTimeline } from "../../payment-chat/src/message-timeline.ts";
-import { MY_ID, profiles } from "./catalog.ts";
+import type { ChatProfile } from "./types.ts";
 import { Avatar, Busy, Icon } from "./ui.tsx";
 
 export type ChatSelection = { kind: "room" | "request"; id: string } | null;
@@ -27,12 +27,15 @@ function Conversation({
   room,
   api,
   onReply,
+  currentUserId,
+  other,
 }: {
+  currentUserId: string;
+  other: ChatProfile | undefined;
   room: ConversationResponse;
   api: Api;
-  onReply: (id: string) => Promise<ChatMessage>;
+  onReply?: (id: string) => Promise<ChatMessage>;
 }) {
-  const other = profiles.find((p) => room.members.includes(p.id));
   const [timeline] = useState(() => createMessageTimeline(room.id));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,7 +178,7 @@ function Conversation({
     }
   }
   async function reply() {
-    if (replyingRef.current || accessError) return;
+    if (!onReply || replyingRef.current || accessError) return;
     replyingRef.current = true;
     setReplying(true);
     setReplyError("");
@@ -209,7 +212,7 @@ function Conversation({
           </span>
           <strong>두 사람의 첫 번째 페이지</strong>
           <p>
-            {other?.name ?? "상대방"}님과의 인연이 시작됐어요.
+            {other?.nickname ?? "상대방"}님과의 인연이 시작됐어요.
             <br />
             서로를 존중하는 다정한 인사를 건네보세요.
           </p>
@@ -218,10 +221,10 @@ function Conversation({
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`message-row ${message.senderId === MY_ID ? "mine" : "theirs"}`}
+            className={`message-row ${message.senderId === currentUserId ? "mine" : "theirs"}`}
           >
-            {message.senderId !== MY_ID ? (
-              <Avatar name={other?.name ?? "?"} tone={other?.tone} small />
+            {message.senderId !== currentUserId ? (
+              <Avatar name={other?.nickname ?? "?"} tone={other?.tone} small />
             ) : null}
             <div className="message-bubble">{message.body}</div>
             <time dateTime={message.createdAt}>{time(message.createdAt)}</time>
@@ -323,25 +326,30 @@ function Conversation({
           )}
         </button>
       </form>
-      <div className="chat-demo-bar">
-        <span>DEMO · 상대방은 가상 인물이에요</span>
-        <button
-          disabled={replying || !!accessError}
-          onClick={() => {
-            void reply();
-          }}
-        >
-          {replying ? "답장 준비 중" : "상대 답장 체험"}
-          <Icon name="arrow" size={13} />
-        </button>
-      </div>
+      {onReply ? (
+        <div className="chat-demo-bar">
+          <span>DEMO · 상대방은 가상 인물이에요</span>
+          <button
+            disabled={replying || !!accessError}
+            onClick={() => {
+              void reply();
+            }}
+          >
+            {replying ? "답장 준비 중" : "상대 답장 체험"}
+            <Icon name="arrow" size={13} />
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
 
 export function ChatPanel({
-  rooms,
-  requests,
+  rooms: allRooms,
+  requests: allRequests,
+  currentUserId,
+  profiles,
+  demo,
   selection,
   listLoading,
   listError,
@@ -349,13 +357,17 @@ export function ChatPanel({
   onSelect,
   onAccept,
   onReject,
-  onDemoAccept,
   api,
-  onReply,
   busy,
 }: {
   rooms: ConversationResponse[];
   requests: ChatRequestResponse[];
+  currentUserId: string;
+  profiles: readonly ChatProfile[];
+  demo?: {
+    onAcceptRequest?: (id: string) => Promise<void>;
+    onReply?: (id: string) => Promise<ChatMessage>;
+  };
   selection: ChatSelection;
   listLoading: boolean;
   listError: string;
@@ -363,11 +375,14 @@ export function ChatPanel({
   onSelect: (value: ChatSelection) => void;
   onAccept: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
-  onDemoAccept: (id: string) => Promise<void>;
   api: Api;
-  onReply: (id: string) => Promise<ChatMessage>;
   busy: boolean;
 }) {
+  // Defense in depth for stale parent data; authorization remains enforced by the server/RLS.
+  const rooms = allRooms.filter((r) => r.members.includes(currentUserId));
+  const requests = allRequests.filter(
+    (r) => r.from === currentUserId || r.to === currentUserId,
+  );
   const pending = requests.filter((r) => r.status === "pending");
   const room =
     selection?.kind === "room"
@@ -378,11 +393,11 @@ export function ChatPanel({
       ? requests.find((r) => r.id === selection.id)
       : undefined;
   const otherId =
-    room?.members.find((id) => id !== MY_ID) ??
-    (invitation?.from === MY_ID ? invitation.to : invitation?.from);
-  const other = profiles.find((p) => p.id === otherId);
+    room?.members.find((id) => id !== currentUserId) ??
+    (invitation?.from === currentUserId ? invitation.to : invitation?.from);
+  const other = profiles.find((p) => p.userId === otherId);
   return (
-    <div className={`chat-layout ${selection ? "has-selection" : ""}`}>
+    <div className={`chat-layout ${room || invitation ? "has-selection" : ""}`}>
       <aside
         className="conversation-list"
         aria-label="대화 목록"
@@ -417,7 +432,8 @@ export function ChatPanel({
         {pending.map((request) => {
           const peer = profiles.find(
             (p) =>
-              p.id === (request.from === MY_ID ? request.to : request.from),
+              p.userId ===
+              (request.from === currentUserId ? request.to : request.from),
           );
           return (
             <button
@@ -425,17 +441,17 @@ export function ChatPanel({
               className={`conversation-item ${selection?.id === request.id ? "active" : ""}`}
               onClick={() => onSelect({ kind: "request", id: request.id })}
             >
-              <Avatar name={peer?.name ?? "?"} tone={peer?.tone} small />
+              <Avatar name={peer?.nickname ?? "?"} tone={peer?.tone} small />
               <span>
-                <strong>{peer?.name ?? "알 수 없는 사용자"}</strong>
+                <strong>{peer?.nickname ?? "알 수 없는 사용자"}</strong>
                 <small>
-                  {request.to === MY_ID
+                  {request.to === currentUserId
                     ? "새로운 대화 요청이 왔어요"
                     : "수락을 기다리고 있어요"}
                 </small>
               </span>
               <span
-                className={`request-dot ${request.to === MY_ID ? "new" : ""}`}
+                className={`request-dot ${request.to === currentUserId ? "new" : ""}`}
               />
             </button>
           );
@@ -443,16 +459,19 @@ export function ChatPanel({
         <div className="list-section-label">이어가는 인연</div>
         {rooms.length ? (
           rooms.map((item) => {
-            const peer = profiles.find((p) => item.members.includes(p.id));
+            const peer = profiles.find(
+              (p) =>
+                p.userId !== currentUserId && item.members.includes(p.userId),
+            );
             return (
               <button
                 key={item.id}
                 className={`conversation-item ${selection?.id === item.id ? "active" : ""}`}
                 onClick={() => onSelect({ kind: "room", id: item.id })}
               >
-                <Avatar name={peer?.name ?? "?"} tone={peer?.tone} small />
+                <Avatar name={peer?.nickname ?? "?"} tone={peer?.tone} small />
                 <span>
-                  <strong>{peer?.name ?? "알 수 없는 사용자"}</strong>
+                  <strong>{peer?.nickname ?? "알 수 없는 사용자"}</strong>
                   <small>대화를 이어가 보세요</small>
                 </span>
                 <Icon name="arrow" size={15} />
@@ -472,7 +491,7 @@ export function ChatPanel({
         </div>
       </aside>
       <section className="conversation-main" aria-label="선택한 대화">
-        {other ? (
+        {room || invitation ? (
           <header className="conversation-header">
             <button
               className="icon-button chat-back"
@@ -481,12 +500,14 @@ export function ChatPanel({
             >
               <Icon name="back" />
             </button>
-            <Avatar name={other.name} tone={other.tone} small />
+            <Avatar
+              name={other?.nickname ?? "상대방"}
+              tone={other?.tone}
+              small
+            />
             <div>
-              <strong>{other.name}</strong>
-              <span>
-                {other.major} · {other.year}
-              </span>
+              <strong>{other?.nickname ?? "상대방"}</strong>
+              <span>{other?.major ?? "공개된 학과 정보가 없어요"}</span>
             </div>
             <span className="private-badge">
               <Icon name="lock" size={13} />
@@ -495,23 +516,30 @@ export function ChatPanel({
           </header>
         ) : null}
         {room ? (
-          <Conversation key={room.id} room={room} api={api} onReply={onReply} />
+          <Conversation
+            key={`${currentUserId}:${room.id}`}
+            room={room}
+            api={api}
+            currentUserId={currentUserId}
+            other={other}
+            onReply={demo?.onReply}
+          />
         ) : invitation ? (
           <div className="request-view">
             <div className="request-art">
-              <Avatar name={other?.name ?? "?"} tone={other?.tone} />
+              <Avatar name={other?.nickname ?? "?"} tone={other?.tone} />
               <span>
                 <Icon name="chat" size={24} />
               </span>
             </div>
             <span className="eyebrow">A NEW CONNECTION</span>
             <h2>
-              {invitation.to === MY_ID
-                ? `${other?.name}님이 인사를 건넸어요`
-                : `${other?.name}님의 수락을 기다려요`}
+              {invitation.to === currentUserId
+                ? `${other?.nickname ?? "상대방"}님이 인사를 건넸어요`
+                : `${other?.nickname ?? "상대방"}님의 수락을 기다려요`}
             </h2>
             <p>
-              {invitation.to === MY_ID
+              {invitation.to === currentUserId
                 ? "서로를 알아갈 작은 기회예요.\n마음이 괜찮다면 대화를 시작해보세요."
                 : "요청을 잘 전달했어요.\n상대가 수락하면 이곳에서 대화를 나눌 수 있어요."}
             </p>
@@ -521,7 +549,7 @@ export function ChatPanel({
                   ? "거절한 요청이에요"
                   : "이미 수락한 요청이에요"}
               </div>
-            ) : invitation.to === MY_ID ? (
+            ) : invitation.to === currentUserId ? (
               <>
                 <div className="request-actions">
                   <button
@@ -548,21 +576,21 @@ export function ChatPanel({
                   받은 요청은 무료로 수락하고 답장할 수 있어요.
                 </span>
               </>
-            ) : (
+            ) : demo?.onAcceptRequest ? (
               <div className="demo-action">
                 <span>데모에서 다음 화면을 확인해보세요</span>
                 <button
                   className="secondary"
                   disabled={busy}
                   onClick={() => {
-                    void onDemoAccept(invitation.id);
+                    void demo.onAcceptRequest?.(invitation.id);
                   }}
                 >
                   {busy ? "처리 중" : "상대 수락 체험"}
                   <Icon name="arrow" size={16} />
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         ) : (
           <div className="empty-chat">

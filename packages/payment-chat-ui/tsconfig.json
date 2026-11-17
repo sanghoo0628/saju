@@ -16,6 +16,8 @@
     "demo",
     "vite.config.ts",
     "../payment-chat/src",
-    "../../contracts"
+    "../../contracts",
+    "test",
+    "vitest.config.ts"
   ]
 }

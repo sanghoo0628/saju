@@ -9,7 +9,8 @@
     "demo:dev": "npm run dev --prefix packages/payment-chat-ui",
     "demo:build": "npm run build --prefix packages/payment-chat-ui",
     "typecheck": "tsc --noEmit",
-    "test:postgres": "vitest run --config vitest.postgres.config.ts"
+    "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "test:ui": "vitest run --config packages/payment-chat-ui/vitest.config.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
