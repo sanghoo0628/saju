@@ -1,5 +1,14 @@
 결제 및 채팅 연결 안내
 
+최신: 결제 이동·복귀 준비 (2026-11-17)
+- checkout-return-store.ts / checkout-return.ts: 사용자별 주문 ID 보존과 동일 주문 재조회.
+- 이동 전 저장/허용 HTTPS origin 확인, 저장 실패 시 이동 차단, 계정 변경 시 오래된 응답 차단.
+- 신규 검사 22개 포함 test:all 187개 + 별도 test:ui 13개 = 총 200개 통과.
+- A 연결 예시와 실제 연동 전 제약: docs/C_CHECKOUT_RETURN_2026-11-17.txt
+- 실제 결제 이동/복귀 라우트나 Groble/Supabase 연결을 완료한 것은 아니다.
+
+아래는 이전 구현 기록이다.
+
 최신: PostgreSQL 어댑터 구현 (2026-11-17)
 - src/server/postgres-repository.ts / postgres-transaction.ts가 pg.Pool과 B SQL을 연결한다.
 - test:all 165개 및 타입/화면 빌드 통과. 별도 네이티브 동시성 10개는 공유 메모리 제한으로 미실행이다.

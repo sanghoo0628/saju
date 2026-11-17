@@ -1,3 +1,6 @@
+결제 이동/복귀 연결 모듈을 추가했다: docs/C_CHECKOUT_RETURN_2026-11-17.txt 참고.
+아래 UI props는 그대로이며 실제 라우트 연결은 여전히 대기 상태다.
+
 C 결제·채팅 UI의 실제 데이터 연결 준비
 2026-11-17 / codex/c-payment-chat
 

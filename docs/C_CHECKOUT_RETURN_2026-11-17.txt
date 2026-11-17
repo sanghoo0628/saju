@@ -1,0 +1,112 @@
+C 결제 이동·복귀 주문 복구 모듈
+2026-11-17 / codex/c-payment-chat
+
+구현 범위
+- packages/payment-chat/src/checkout-return-store.ts
+  사용자별 sessionStorage에 version/userId/orderId/savedAt만 보존한다.
+  프로필, 생년월일, 사주, 결제 URL, 결제 상태, 결제 거래 ID는 저장하지 않는다.
+- packages/payment-chat/src/checkout-return.ts
+  명시적 결제 버튼의 이동 준비와 복귀 후 기존 주문 조회를 조정한다.
+- React/Next.js에 의존하지 않으며 A의 실제 앱에 연결할 수 있다.
+  현재 데모 App이나 실제 Groble 결제창에 연결한 것은 아니다.
+
+결제창 이동
+1. 기존 createCheckoutFlow.start(matchResultId)로 서버 주문을 준비한다.
+2. 사용자가 결제 버튼을 누를 때만 controller.leave()를 호출한다.
+3. 상태가 payment_required인지, 주소가 허용한 HTTPS origin인지 확인한다.
+4. 같은 사용자의 주문 ID를 저장하고 읽어 쓰기가 완료됐는지 확인한다.
+5. 그 뒤에만 navigate(url)를 호출한다. 기본 동작은 window.location.assign이다.
+6. 중복 클릭은 같은 주문·주소에 대해 이동 요청을 한 번만 실행한다.
+
+leave() 결과
+- redirect_requested: 이동 요청을 수행했다. 결제가 됐다는 뜻은 아니다.
+- not_ready: 아직 이동할 결제 준비 상태가 아니다.
+- invalid_url: HTTPS/허용 origin/사용자정보 없는 URL 조건을 만족하지 않는다.
+- storage_unavailable: 복귀 정보를 보존하지 못했다. 이동하지 않았으므로 오류를 안내한다.
+- navigation_failed: 이동 함수가 예외를 냈다. 저장 정보는 보존하므로 같은 주문으로 재시도한다.
+- disposed: 해제된 사용자 컨텍스트다. 새 로그인 컨텍스트를 사용한다.
+
+복귀
+- 로그인 사용자 ID가 확인된 뒤 controller.restore()를 호출한다.
+- 현재 사용자에 속한 저장 정보만 읽고 flow.resume(orderId)를 실행한다.
+- 새 주문 생성, 결제/환불 API, 대화 요청은 자동 호출하지 않는다.
+- URL의 success/paid 표시는 읽지 않는다. 저장 정보도 결제 증거로 취급하지 않는다.
+- restored는 조회 작업이 끝났다는 뜻이다. 반드시 result.state/flow 상태로 화면을 결정한다.
+  chat_available만 대화 권한 확인 상태이며 pending/환불/취소/error는 성공이 아니다.
+- 인증/소유권 오류는 기존 서버의 GET /api/orders/:id에서 검증한다.
+- 다른 계정, 만료/손상 캐시, 저장소 장애는 저장된 주문을 조회하지 않는다.
+- restore() 중복 호출은 하나의 작업을 공유한다.
+- 화면/계정 해제 또는 새 결제 준비 뒤 도착한 이전 복귀 결과는 적용하지 않는다.
+
+수명 관리
+- 기본 캐시 수명은 24시간이며 ttlMs로 조정할 수 있다.
+  이 값은 브라우저 메타데이터의 보존 기간일 뿐 주문 만료/취소/환불 정책이 아니다.
+- 미래 시각/잘못된 데이터/캐시 만료는 복구 대상으로 쓰지 않는다.
+- controller.dispose()는 진행 중 조회를 중단하되 저장 정보를 삭제하지 않는다.
+  결제 이동 자체가 화면을 해제하므로 unmount 때 캐시를 지우면 복귀할 수 없기 때문이다.
+- 성공적으로 요청 화면에 연결했거나 명시적으로 로그아웃할 때 controller.forget(orderId)로 정리한다.
+  오래된 주문의 정리가 이후에 저장한 다른 주문을 지우지 않게 주문 ID를 비교한다.
+- 같은 계정의 fulfilled/refund_pending도 UI가 처리 결과를 확인할 때까지 캐시를 유지한다.
+- 컨트롤러와 flow는 사용자 컨텍스트마다 새로 만들고 모듈 전역에서 사용자 간 공유하지 않는다.
+- 계정 변경 시 이전 구독 해제 → controller.dispose() → flow.dispose() 후 새 컨텍스트를 만든다.
+
+A 연결 예시 (사용자별 클라이언트 컨텍스트 안에서 생성)
+
+  const client = createBrowserClient();
+  const flow = createCheckoutFlow({ client });
+  const store = createCheckoutReturnStore();
+  const controller = createCheckoutReturnController({
+    userId: currentUserId,
+    flow,
+    store,
+    allowedCheckoutOrigins: approvedCheckoutOrigins,
+  });
+  const unsubscribe = flow.subscribe(setCheckout);
+
+  // PaymentDialog.paymentAction
+  const paymentAction = {
+    kind: 'checkout' as const,
+    onCheckout: () => {
+      const result = controller.leave();
+      // 저장소/주소/이동 오류는 지속되는 안내로 표시한다.
+      // redirect_requested만으로 '결제 완료'를 표시하지 않는다.
+      handleLeaveResult(result);
+    },
+  };
+
+  // 실제 복귀 화면: 인증 확인 후 실행. 필요하면 응답을 확인해 안내한다.
+  const result = await controller.restore();
+  // restored인 경우에도 result.state를 확인한다.
+  // 반환된 orderId로 서버 주문/targetId와 허용된 공개 프로필을 읽어 화면에 연결한다.
+
+  // 화면 해제: 캐시는 남겨 둔다.
+  unsubscribe();
+  controller.dispose();
+  flow.dispose();
+
+approvedCheckoutOrigins는 서버/배포에서 확인한 결제 서비스 origin 목록이다.
+'서버가 내려준 URL의 origin을 그대로 허용 목록으로 삼는 방식'이나 URL 쿼리 입력으로 만들지 않는다.
+전체 결제 URL이 아닌 https://도메인[:포트] 형식을 전달한다.
+실제 Groble 도메인/복귀 URL 지원은 아직 명세 확인이 필요하므로 임의의 도메인을 기본값으로 넣지 않았다.
+
+제약과 남은 연결
+- 사용자·현재 탭별 마지막 이동 주문 한 개를 복구한다. 새 이동은 그 사용자의 기존 캐시를 교체한다.
+- 새 탭/다른 기기/브라우저 종료 후 복귀는 sessionStorage로 보장할 수 없다.
+  캐시가 없다는 이유로 결제 실패를 단정하거나 새 결제를 자동 유도하지 않는다.
+  기존 프로필/서버 주문을 통해 확인하는 운영 UX는 공통 앱 연결 때 준비한다.
+- 실제 Groble 복귀 URL 등록, 결제창 이동과 결제 확인 페이지, A 로그인, 브라우저 세션 동작은 미연결이다.
+- DB 주문 상태/과금·환불 정책/대화 권한 규칙은 바꾸지 않았다.
+- 네이티브 PostgreSQL 다중 연결 검사 10개는 여전히 별도 확인이 필요하다.
+
+검증
+- 신규 checkout-return.test.ts 22개 통과.
+- 복귀 저장소의 사용자 분리, 캐시 변조/만료, 저장 실패, 잘못된 외부 주소,
+  중복 이동/조회, 해제 후 응답, 새 페이지 복구와 기존 주문 유지 검증.
+- 기존 HTTP 클라이언트 → HTTP 어댑터 → 실제 C 주문 서비스까지 연결한 메모리 통합 검사 포함.
+  다른 로그인 세션의 변조된 주문 복구가 서버에서 거부되는지 확인했다.
+- 테스트의 이동 함수/브라우저 저장소는 대역이다. 실제 Groble 결제나 브라우저 이동을 실행하지 않는다.
+- npm run test:all: Vitest 104 + C Node 83 = 187개 통과.
+- npm run test:ui: 13개 통과. 전체 합계 200개.
+- npm run typecheck 및 npm run demo:build 통과.
+- 새 의존성·잠금 파일·환경 변수·공유 UI props 변경 없음.
+- main/B 브랜치와 실제 외부 DB는 변경하지 않는다.
