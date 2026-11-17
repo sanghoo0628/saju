@@ -1,3 +1,5 @@
+추가: ChatPanel.messageSource 연결 예시는 docs/C_REALTIME_PREPARATION_2026-11-18.txt 참고.
+
 결제 이동/복귀 연결 모듈을 추가했다: docs/C_CHECKOUT_RETURN_2026-11-17.txt 참고.
 아래 UI props는 그대로이며 실제 라우트 연결은 여전히 대기 상태다.
 

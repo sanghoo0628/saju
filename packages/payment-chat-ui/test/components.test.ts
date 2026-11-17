@@ -183,3 +183,16 @@ describe("chat identity and demo isolation", () => {
     expect(html).toContain("상대 수락 체험");
   });
 });
+
+it("shows connection status when a realtime source is supplied without adding demo controls", () => {
+  const html = panel({
+    selection: { kind: "room", id: room.id },
+    messageSource: {
+      subscribe() {
+        return () => {};
+      },
+    },
+  });
+  expect(html).toContain("실시간 연결 중");
+  expect(html).not.toContain("상대 답장 체험");
+});

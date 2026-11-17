@@ -1,0 +1,113 @@
+C 실시간 채팅 연결 준비
+2026-11-18 / codex/c-payment-chat
+
+완료한 코드
+- packages/payment-chat/src/message-source.ts
+  프레임워크 독립적인 구독/상태 인터페이스.
+- packages/payment-chat/src/supabase-message-source.ts
+  A의 로그인된 Supabase 브라우저 클라이언트를 받아 Postgres Changes 구독을 생성한다.
+- packages/payment-chat/src/message-session.ts
+  Realtime, HTTP 기록, 전송 응답을 기존 message-timeline의 ID 기준으로 합친다.
+- packages/payment-chat-ui/src/ChatPanel.tsx
+  선택적인 messageSource prop과 연결 상태 안내를 추가하고 위 세션을 실제 화면에 연결했다.
+  source를 생략한 현재 데모는 기존 HTTP 폴링을 사용한다.
+
+수신/복구 동작
+1. 인증된 현재 사용자와 일치하는지 client.auth.getUser()로 확인한다.
+2. public.messages의 conversation_id=eq.<방 UUID>, INSERT만 구독한다.
+3. snake_case 행을 ChatMessage의 공개 필드(id/conversationId/senderId/body/createdAt)로 변환한다.
+4. 방·작성자·본문·시각이 잘못됐거나 다른 테이블/종류의 이벤트는 버린다.
+5. 초기 HTTP 권한 확인 전 이벤트는 표시하지 않고 최대 200개를 임시 보관한다.
+6. HTTP 확인 뒤 기록·실시간·전송 응답을 ID로 합쳐 중복 표시를 방지한다.
+7. 채널이 SUBSCRIBED로 연결/재연결되면 처음부터 기록을 조회해 누락을 채운다.
+   진행 중이던 오래된 페이지는 버리고 새 조회를 이어 간다.
+8. 버퍼 한도를 넘어 버린 이벤트도 이후 HTTP 페이지 조회로 보완한다.
+9. Realtime의 최신 메시지 ID를 HTTP 기록 커서로 사용하지 않는다.
+10. 로그아웃/계정 변경/방 변경/화면 해제 시 해당 채널·인증 감시·타이머를 정리한다.
+    해제 후 늦은 인증/조회/Realtime 콜백도 화면에 적용하지 않는다.
+
+권한과 장애 처리
+- Realtime 연결 성공 자체는 결제/대화 권한의 증거가 아니다.
+- 기존 서버 메시지 API와 B의 messages SELECT RLS가 권한을 확인한다.
+- 실시간 연결이 살아 있어도 2.5초 주기의 HTTP 조회를 유지한다.
+  새 이벤트가 오지 않는 차단 상황에서도 401/403/404를 확인하면 기존 기록을 지우고 입력/구독을 중단한다.
+  이 검사는 즉시 차단 감지를 보장하지 않는다. 실제 감지는 요청 지연과 다음 조회 시점에 영향을 받는다.
+- 일시적 인증 통신 실패는 기본 5초 간격으로 재시도한다.
+- 채널 오류/타임아웃은 SDK 재연결에 맡기며, 닫힌 채널은 새로 구독한다.
+- Realtime이 없어도 HTTP 조회를 계속한다. 예기치 않은 초기 SDK 설정 실패는 닫힘 상태로 안내한다.
+- 실제 전송은 기존 인증된 POST 메시지 API만 사용한다.
+  Broadcast나 브라우저의 직접 DB INSERT로 저장/권한 검사를 우회하지 않는다.
+- UPDATE/DELETE 이벤트는 이 읽기 전용 수신 어댑터에서 처리하지 않는다.
+  메시지 수정/삭제 기능과 해당 상품 정책을 새로 구현한 것은 아니다.
+
+A 연결 예시
+
+  import { createSupabaseMessageSource } from '<C>/supabase-message-source';
+
+  // A가 만든 @supabase/ssr 브라우저 클라이언트. 새 관리자 클라이언트를 만들지 않는다.
+  const source = createSupabaseMessageSource(supabaseBrowserClient);
+
+  <ChatPanel
+    currentUserId={verifiedUserId}
+    profiles={publicProfiles}
+    rooms={rooms}
+    requests={requests}
+    selection={selection}
+    onSelect={setSelection}
+    listLoading={listLoading}
+    listError={listError}
+    onReload={reloadLists}
+    onAccept={acceptRequest}
+    onReject={rejectRequest}
+    api={paymentChatApi}
+    busy={busy}
+    messageSource={source}
+  />
+
+- source는 useMemo 등으로 안정적으로 유지하고 렌더링할 때마다 새로 만들지 않는다.
+- 서버 인증 함수의 user.id와 브라우저 Supabase 세션의 user.id가 같아야 한다.
+- 실제 UUID만 받는다. 데모의 demo-me 같은 ID는 구독하지 않는다.
+- 브라우저에는 publishable/anon 키만 사용한다. secret/service-role 클라이언트를 넘기지 않는다.
+- Supabase SDK가 같은 사용자의 토큰 갱신을 Realtime에 반영한다.
+  이 어댑터는 JWT를 별도로 저장하거나 로그에 출력하지 않는다.
+- React effect마다 새 message-session을 만들고 정리하므로 StrictMode의 설정/해제에도 대응한다.
+- 검증한 설치 버전: @supabase/supabase-js 2.119.0 및 해당 realtime-js.
+  현재 SDK의 postgres_changes_options.wait=true 옵션을 사용한다.
+  A가 버전을 통일하면 이 옵션과 실제 프로젝트의 구독 준비 상태를 함께 확인한다.
+- 추가 패키지 설치·잠금 파일·환경 변수·DB 마이그레이션 변경은 없다.
+
+B에게 답변이 왔을 때 함께 확인할 항목
+- 공통 개발 DB에 messages RLS와 SELECT 권한이 적용됐는지.
+- public.messages가 supabase_realtime publication에 포함됐는지.
+- 참여자 A/B는 해당 방 메시지를 읽고 제3자 C는 읽지 못하는지.
+- 양방향 차단 뒤 HTTP 조회와 Realtime 신규 수신이 모두 거부되는지.
+- Realtime 구독 가능 상태와 실제 INSERT 이벤트 전달 여부는 다른 계정 두 개로 검증한다.
+이번 작업에서는 실제 DB/대시보드를 변경하지 않았다.
+
+검증한 범위
+- Supabase 어댑터 대역 검사 11개: 행 변환, 필터, 인증 확인, 해제, 토큰 갱신,
+  사용자 변경, 통신 실패 재시도, 닫힌 채널 재구독, 오래된 이벤트 무시.
+- 세션 검사 15개: 초기 이벤트 버퍼, 권한 거부, ID 중복, 재연결 누락,
+  HTTP 오류/차단, 버퍼 한도, 기록 커서 및 해제 후 응답 차단.
+- UI 연결 상태 렌더링 검사 1개 추가.
+- npm run test:all: Vitest 104 + C Node 109 = 213개 통과.
+- npm run test:ui: 14개 통과. 합계 227개.
+- npm run typecheck 및 npm run demo:build 통과.
+- 로컬 브라우저: 받은 요청 무료 수락 → 기록 로딩 → 메시지 전송 → 데모 답장 확인.
+  테스트 프록시로 HTTP 403을 주입해 기존 기록 숨김/입력·답장 차단도 확인했다.
+  정상 경로 브라우저 오류 로그는 없었다.
+- 브라우저 검증은 source가 없는 데모의 회귀 검사다.
+  실제 Supabase WebSocket/토큰 갱신/네트워크 재연결은 검증한 것이 아니다.
+- Supabase 어댑터 검사는 SDK와 같은 타입의 대역을 사용한다. 실제 서버와의 호환성 검증은 별도로 필요하다.
+
+아직 남은 것
+A Next.js/Auth 코드 연결, B 실제 Supabase 프로젝트 설정 확인,
+실제 계정 두 개와 제3자 계정으로 송수신·로그아웃·차단·재연결 테스트.
+기존 Groble 결제·복귀 라우트 및 네이티브 PostgreSQL 동시성 10개 검증도 남아 있다.
+main과 B 브랜치는 수정하지 않는다. A/B 답변이 오면 이번 변경까지 묶어서 공유한다.
+
+규격 참고
+https://supabase.com/docs/guides/realtime/postgres-changes
+https://supabase.com/docs/guides/realtime/subscribing-to-database-changes
+설치된 node_modules/@supabase/realtime-js/src/RealtimeChannel.ts
+설치된 node_modules/@supabase/supabase-js/src/SupabaseClient.ts

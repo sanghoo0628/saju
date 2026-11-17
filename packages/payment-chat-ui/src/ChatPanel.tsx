@@ -6,11 +6,12 @@ import type {
   ChatRequestResponse,
   ConversationResponse,
 } from "../../../contracts/payment-chat.ts";
+import { createBrowserClient } from "../../payment-chat/src/client.ts";
 import {
-  createBrowserClient,
-  PaymentChatClientError,
-} from "../../payment-chat/src/client.ts";
-import { createMessageTimeline } from "../../payment-chat/src/message-timeline.ts";
+  createMessageSession,
+  type MessageSession,
+} from "../../payment-chat/src/message-session.ts";
+import type { MessageSource } from "../../payment-chat/src/message-source.ts";
 import type { ChatProfile } from "./types.ts";
 import { Avatar, Busy, Icon } from "./ui.tsx";
 
@@ -29,14 +30,19 @@ function Conversation({
   onReply,
   currentUserId,
   other,
+  messageSource,
 }: {
+  messageSource?: MessageSource;
   currentUserId: string;
   other: ChatProfile | undefined;
   room: ConversationResponse;
   api: Api;
   onReply?: (id: string) => Promise<ChatMessage>;
 }) {
-  const [timeline] = useState(() => createMessageTimeline(room.id));
+  const sessionRef = useRef<MessageSession | null>(null);
+  const [connection, setConnection] = useState(
+    messageSource ? "connecting" : "polling",
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -55,86 +61,48 @@ function Conversation({
   const scroll = useRef<HTMLDivElement>(null);
   useEffect(() => {
     active.current = true;
-    const controller = new AbortController();
-    let inProgress = false;
-    function deny(error: unknown) {
-      if (
-        !(error instanceof PaymentChatClientError) ||
-        ![401, 403, 404].includes(error.status)
-      )
-        return false;
-      accessDenied.current = true;
-      timeline.clear();
-      setMessages([]);
-      setAccessError(
-        error.status === 401
-          ? "로그인이 만료됐어요. 다시 로그인한 뒤 대화를 열어주세요."
-          : "이 대화에 접근할 수 없어요. 대화 목록에서 상태를 확인해주세요.",
-      );
-      return true;
-    }
-    async function load() {
-      if (inProgress || accessDenied.current || controller.signal.aborted)
-        return;
-      inProgress = true;
-      try {
-        for (let i = 0; i < 10; i++) {
-          const token = timeline.nextHistoryPage();
-          const page = await api.messages(
-            room.id,
-            token.afterId,
-            controller.signal,
-          );
-          if (
-            !active.current ||
-            controller.signal.aborted ||
-            accessDenied.current
-          )
-            return;
-          timeline.appendHistory(page, token);
-          setMessages(timeline.snapshot().messages);
-          setHistoryError("");
-          if (page.length < 100) break;
-        }
-      } catch (err) {
-        if (!controller.signal.aborted && active.current) {
-          if (!deny(err))
-            setHistoryError(
-              "대화를 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.",
-            );
-        }
-      } finally {
-        inProgress = false;
-        if (active.current && !controller.signal.aborted) setLoading(false);
-      }
-    }
+    accessDenied.current = false;
+    const session = createMessageSession({
+      userId: currentUserId,
+      conversation: room,
+      client: api,
+      source: messageSource,
+    });
+    sessionRef.current = session;
+    const stop = session.subscribe((state) => {
+      setMessages(state.messages);
+      setLoading(state.loading);
+      setHistoryError(state.historyError);
+      setAccessError(state.accessError);
+      setConnection(state.connection);
+      accessDenied.current = !!state.accessError;
+    });
     reload.current = () => {
-      if (!accessDenied.current && !controller.signal.aborted) {
-        setLoading(true);
-        void load();
-      }
+      setLoading(true);
+      void session.refresh();
     };
-    void load();
-    const timer = setInterval(() => {
-      void load();
-    }, 2500);
+    session.start();
     const reconnect = () => {
-      if (document.visibilityState === "visible") {
-        timeline.restartHistory();
-        void load();
-      }
+      if (document.visibilityState === "visible") void session.refresh(true);
     };
     document.addEventListener("visibilitychange", reconnect);
     return () => {
       active.current = false;
-      controller.abort();
+      stop();
+      session.dispose();
+      if (sessionRef.current === session) sessionRef.current = null;
       sendController.current?.abort();
-      clearInterval(timer);
       document.removeEventListener("visibilitychange", reconnect);
-      timeline.clear();
       reload.current = () => {};
     };
-  }, [api, room.id, timeline]);
+  }, [
+    api,
+    room.id,
+    room.members[0],
+    room.members[1],
+    currentUserId,
+    messageSource,
+  ]);
   useEffect(() => {
     if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages.length]);
@@ -145,32 +113,31 @@ function Conversation({
     sendingRef.current = true;
     setSending(true);
     setSendError("");
+    const session = sessionRef.current;
+    if (!session) {
+      sendingRef.current = false;
+      setSending(false);
+      return;
+    }
     const controller = (sendController.current = new AbortController());
     try {
       const result = await api.sendMessage(room.id, body, controller.signal);
-      if (!active.current || controller.signal.aborted || accessDenied.current)
+      if (
+        !active.current ||
+        controller.signal.aborted ||
+        accessDenied.current ||
+        sessionRef.current !== session
+      )
         return;
-      timeline.receive(result);
-      setMessages(timeline.snapshot().messages);
+      session.receive(result);
       setDraft("");
     } catch (error) {
       if (active.current && !controller.signal.aborted) {
-        if (
-          error instanceof PaymentChatClientError &&
-          [401, 403, 404].includes(error.status)
-        ) {
-          accessDenied.current = true;
-          timeline.clear();
-          setMessages([]);
-          setAccessError(
-            error.status === 401
-              ? "로그인이 만료됐어요. 다시 로그인해주세요."
-              : "이 대화에 메시지를 보낼 수 없어요. 대화 목록에서 상태를 확인해주세요.",
-          );
-        } else
-          setSendError(
-            "전송 여부를 확인하지 못했어요. 입력한 내용은 보관했어요. 중복 전송을 피하려면 대화 기록을 확인한 뒤 다시 보내주세요.",
-          );
+        if (sessionRef.current !== session) return;
+        if (session.deny(error)) return;
+        setSendError(
+          "전송 여부를 확인하지 못했어요. 입력한 내용은 보관했어요. 중복 전송을 피하려면 대화 기록을 확인한 뒤 다시 보내주세요.",
+        );
       }
     } finally {
       sendingRef.current = false;
@@ -182,12 +149,16 @@ function Conversation({
     replyingRef.current = true;
     setReplying(true);
     setReplyError("");
+    const session = sessionRef.current;
     try {
       const message = await onReply(room.id);
-      if (active.current && !accessDenied.current) {
-        timeline.receive(message);
-        setMessages(timeline.snapshot().messages);
-      }
+      if (
+        active.current &&
+        !accessDenied.current &&
+        session &&
+        sessionRef.current === session
+      )
+        session.receive(message);
     } catch {
       if (active.current)
         setReplyError("답장 체험을 실행하지 못했어요. 다시 시도해주세요.");
@@ -217,6 +188,19 @@ function Conversation({
             서로를 존중하는 다정한 인사를 건네보세요.
           </p>
         </div>
+        {messageSource ? (
+          <p className="connection-note" role="status">
+            {connection === "live"
+              ? "실시간 연결됨"
+              : connection === "connecting"
+                ? "실시간 연결 중 · 기록도 확인하고 있어요"
+                : connection === "auth_required"
+                  ? "로그인과 대화 권한을 확인해주세요"
+                  : connection === "closed"
+                    ? "실시간 연결이 종료되어 기록 조회로 확인하고 있어요"
+                    : "실시간 연결 재시도 중 · 기록 조회로 확인하고 있어요"}
+          </p>
+        ) : null}
         {loading ? <Busy text="대화 불러오는 중" /> : null}
         {messages.map((message) => (
           <div
@@ -349,6 +333,7 @@ export function ChatPanel({
   requests: allRequests,
   currentUserId,
   profiles,
+  messageSource,
   demo,
   selection,
   listLoading,
@@ -364,6 +349,7 @@ export function ChatPanel({
   requests: ChatRequestResponse[];
   currentUserId: string;
   profiles: readonly ChatProfile[];
+  messageSource?: MessageSource;
   demo?: {
     onAcceptRequest?: (id: string) => Promise<void>;
     onReply?: (id: string) => Promise<ChatMessage>;
@@ -522,6 +508,7 @@ export function ChatPanel({
             api={api}
             currentUserId={currentUserId}
             other={other}
+            messageSource={messageSource}
             onReply={demo?.onReply}
           />
         ) : invitation ? (

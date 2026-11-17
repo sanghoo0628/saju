@@ -1,5 +1,13 @@
 홍연 결제 및 채팅 화면
 
+최신: Realtime source 연결 준비 (2026-11-18)
+- ChatPanel에 선택적인 messageSource prop을 추가했다.
+- 인증된 Supabase 브라우저 클라이언트로 createSupabaseMessageSource(client)를 만들어 전달한다.
+- source를 생략한 데모는 기존 폴링을 유지한다. 실시간 상태 안내는 source가 있을 때 표시한다.
+- 구독·기록 복구·차단 처리를 message-session에 통합했다.
+- 최신 설명: docs/C_REALTIME_PREPARATION_2026-11-18.txt
+- test:all 213개 + test:ui 14개 = 227개 통과. 실제 Supabase 연결은 미검증이다.
+
 최신: 실제 데이터 props 준비 (2026-11-17)
 - ChatPanel은 currentUserId와 B 공개 프로필 형식의 profiles를 받는다.
 - PaymentDialog도 userId/nickname/major를 사용하고 점수/학번을 요구하지 않는다.

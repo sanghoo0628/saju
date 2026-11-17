@@ -2313,3 +2313,11 @@ button svg {
 .segmented button {
   flex-basis: 40%;
 }
+
+.connection-note {
+  margin: 10px 0;
+  text-align: center;
+  color: #806774;
+  font-size: 11px;
+  line-height: 1.6;
+}
