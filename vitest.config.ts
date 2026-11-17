@@ -1,3 +1,9 @@
 import { defineConfig } from "vitest/config";
-// B의 Vitest와 C의 node:test를 서로의 테스트 러너로 실행하지 않는다.
-export default defineConfig({ test:{ include:["tests/**/*.test.ts"] } });
+// Native multi-connection PostgreSQL tests run separately: npm run test:postgres.
+// C's node:test suite is executed by test:payments, not Vitest.
+export default defineConfig({
+  test: {
+    include: ["tests/**/*.test.ts"],
+    exclude: ["tests/integration/postgres-repository.test.ts"],
+  },
+});

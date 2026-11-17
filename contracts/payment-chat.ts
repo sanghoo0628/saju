@@ -30,7 +30,8 @@ export type CreateOrderResponse =
 export interface OrderResponse {
   orderId: string;
   status: OrderStatus;
-  targetId: string;
+  /** NULL when the target account has been permanently deleted. */
+  targetId: string | null;
 }
 
 /** B의 매칭 기능과 연결할 서버 내부 계약.

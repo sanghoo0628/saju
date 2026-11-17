@@ -58,6 +58,12 @@ Node 24 이상이 필요합니다. `packages/payment-chat-ui`에서 `pnpm instal
 
 이 화면은 가상 인물과 로컬 메모리 저장소를 사용하는 데모입니다. 실제 결제·Supabase 인증·실시간 구독은 연결하지 않았습니다. 공통 Next.js 앱에 탑재하기 위한 설명은 [`INTEGRATION_UI.txt`](./packages/payment-chat-ui/INTEGRATION_UI.txt)를 참고하세요.
 
+### C PostgreSQL 어댑터
+
+`src/server/postgres-repository.ts`의 `createPaymentChatDatabase(DATABASE_URL)`로 실제 `pg.Pool` 저장소를 만들 수 있습니다. 같은 연결에서 결제 기록과 권한을 확정하며 직렬화 충돌만 제한적으로 재시도합니다. 서버 연결 예시는 [`C_POSTGRES_ADAPTER_2026-11-17.txt`](./docs/C_POSTGRES_ADAPTER_2026-11-17.txt)를 참고하세요.
+
+`npm run test:all`은 165개 검사를 실행합니다. 실제 `pg.Pool`의 TCP 왕복 검사는 PGlite를 사용합니다. 네이티브 PostgreSQL의 다중 연결 검사는 별도 `npm run test:postgres`로 실행합니다. 현재 Codex 환경에서는 공유 메모리 제한으로 이 별도 검사 10개를 실행하지 못했습니다. 실제 Supabase/Groble 연결 검증도 남아 있습니다.
+
 ### B와 C 통합 검증
 
 `npm test`는 B의 Vitest 및 DB 통합 검사를, `npm run test:payments`는 C의 Node 테스트를 실행합니다. 두 테스트 러너의 검색 범위는 분리했습니다. `npm run test:all`로 모두 실행할 수 있습니다.

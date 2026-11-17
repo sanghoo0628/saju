@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 const MIGRATIONS_DIR = join(import.meta.dirname, "..", "..", "supabase", "migrations");
 
-const SUPABASE_STUB = /* sql */ `
+export const SUPABASE_STUB = /* sql */ `
   create role anon nologin;
   create role authenticated nologin;
   create role service_role nologin bypassrls;
@@ -94,7 +94,7 @@ export interface SeedUser {
 }
 
 /** 슈퍼유저로 직접 시드 (RLS 무시) */
-export async function seedUsers(db: PGlite, users: SeedUser[]): Promise<void> {
+export async function seedUsers(db: Pick<PGlite, "query">, users: SeedUser[]): Promise<void> {
   for (const u of users) {
     const score = u.score === undefined ? 1000 : u.score;
     const track = u.track ?? (score !== null && score < 0 ? "science" : "humanities");

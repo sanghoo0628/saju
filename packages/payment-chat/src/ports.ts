@@ -2,12 +2,13 @@ import type { ChatMessage, OrderStatus, ChatRequestResponse, ConversationRespons
 
 /** HTTP 입력이 아닌 서버에서 검증한 로그인 세션에서 생성한다. */
 export interface Actor { userId: string }
+/** Retained payment records may lose identity FKs after an account or recommendation is deleted. */
 export interface Order {
   id: string;
-  userId: string;
+  userId: string | null;
   reference: string;
-  targetId: string;
-  matchResultId: string;
+  targetId: string | null;
+  matchResultId: string | null;
   amountKrw: 500;
   status: OrderStatus;
 }

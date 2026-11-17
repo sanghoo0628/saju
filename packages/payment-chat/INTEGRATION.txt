@@ -1,5 +1,13 @@
 결제 및 채팅 연결 안내
 
+최신: PostgreSQL 어댑터 구현 (2026-11-17)
+- src/server/postgres-repository.ts / postgres-transaction.ts가 pg.Pool과 B SQL을 연결한다.
+- test:all 165개 및 타입/화면 빌드 통과. 별도 네이티브 동시성 10개는 공유 메모리 제한으로 미실행이다.
+- 연결 예시와 재시도 규칙/환경 설정은 docs/C_POSTGRES_ADAPTER_2026-11-17.txt를 우선 참고한다.
+- 실제 Supabase/Groble/Next.js 라우트는 아직 연결하지 않았다.
+
+아래는 이전 통합 기록이다.
+
 2026년 11월 17일 통합 갱신
 - B의 672f5cb 프로필/매칭 코드 및 DB 마이그레이션/RLS를 C 브랜치에 통합했다.
 - 검증한 권한·테스트·타입 수정안과 SQL 통합 검사 13개를 포함했다.

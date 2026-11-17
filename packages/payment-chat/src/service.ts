@@ -99,7 +99,7 @@ export function createService(deps: {
         if (order.status !== "pending")
           invalid("처리할 수 없는 주문 상태입니다.");
         await tx.savePayment(payment.transactionId, order.id);
-        if (!(await tx.profileAvailable(order.targetId)) || await tx.blocked(order.userId, order.targetId)) {
+        if (!order.userId || !order.targetId || !(await tx.profileAvailable(order.targetId)) || await tx.blocked(order.userId, order.targetId)) {
           // 대상을 임의로 바꾸지 않는다. 결제 사실을 보존하고 환불 처리로 넘긴다.
           await tx.saveOrder({ ...order, status: "refund_pending" });
           return { orderId: order.id, status: "refund_pending" as const };
@@ -113,7 +113,7 @@ export function createService(deps: {
       const userId = requireActor(actor);
       return repository.transaction(async tx => {
         const order = await ownOrder(tx, orderId, userId);
-        if (order.status !== "fulfilled" || order.targetId === userId) forbidden();
+        if (order.status !== "fulfilled" || !order.targetId || order.targetId === userId) forbidden();
         await availablePair(tx, userId, order.targetId);
         if (!(await tx.profileAvailable(order.targetId))) forbidden();
         const existing = await tx.requestForPair(userId, order.targetId);
