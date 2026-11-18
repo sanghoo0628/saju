@@ -153,4 +153,4 @@ DB 변경은 각자 담당 영역의 마이그레이션 파일을 작성하고 B
 - 개발 계획: [`docs/`](./docs)
 - 프로필·매칭 계약 (B ↔ C, DB 설계 포함): [`docs/CONTRACT_profile_matching.md`](./docs/CONTRACT_profile_matching.md)
 
-개발 재개 시 최신 인수인계: [C_RESUME_2026-11-18.txt](./docs/C_RESUME_2026-11-18.txt).
+개발 재개 시 최신 인수인계: [C_RESUME_2026-11-19.txt](./docs/C_RESUME_2026-11-19.txt).
