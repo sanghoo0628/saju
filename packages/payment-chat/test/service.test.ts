@@ -37,7 +37,7 @@ test("잘못된 서명은 권한과 결제 기록을 생성하지 않는다", as
   const f=fixture(), order=await f.service.createOrder(alice,"a-b");
   if(order.kind!=="payment_required") throw new Error();
   await assert.rejects(f.deliver(f.event(order.orderId),false),/invalid signature/);
-  assert.equal(f.state.orders[0].status,"pending");
+  assert.equal(f.state.orders[0]!.status,"pending");
   assert.equal(f.state.payments.length,0);
 });
 
@@ -55,7 +55,7 @@ test("동시 웹훅 재전송에도 결제 기록과 권한은 하나다", async
   if(order.kind!=="payment_required") throw new Error();
   await Promise.all(Array.from({length:10},()=>f.deliver(f.event(order.orderId))));
   assert.equal(f.state.payments.length,1);
-  assert.equal(f.state.orders[0].status,"fulfilled");
+  assert.equal(f.state.orders[0]!.status,"fulfilled");
   assert.deepEqual(await f.service.createOrder(alice,"a-b"),{kind:"chat_available",orderId:order.orderId});
 });
 
@@ -64,7 +64,7 @@ test("한 결제 식별자를 다른 프로필 주문에 재사용할 수 없다
   const second=await f.service.createOrder(alice,"a-c");
   if(second.kind!=="payment_required") throw new Error();
   await assert.rejects(f.deliver(f.event(second.orderId,{transactionId:`payment-${first}`})),denied("INVALID_REQUEST"));
-  assert.equal(f.state.orders[1].status,"pending");
+  assert.equal(f.state.orders[1]!.status,"pending");
 });
 
 test("결제 중 상대가 비공개되면 대상 변경 없이 환불 대기로 전환한다", async () => {
@@ -75,7 +75,7 @@ test("결제 중 상대가 비공개되면 대상 변경 없이 환불 대기로
   assert.equal(result.status,"refund_pending");
   assert.equal((await f.deliver(f.event(order.orderId))).status,"refund_pending");
   assert.equal(f.state.payments.length,1);
-  assert.equal(f.state.orders[0].targetId,"bob");
+  assert.equal(f.state.orders[0]!.targetId,"bob");
   await assert.rejects(f.service.requestChat(alice,order.orderId),denied("FORBIDDEN"));
 });
 
@@ -88,7 +88,7 @@ test("주문 조회와 대화 요청은 결제한 사용자만 가능하다", as
 
 test("환불된 주문은 웹훅 재전송으로 대화 권한이 복구되지 않는다", async () => {
   const f=fixture(), id=await f.paid();
-  f.state.orders[0].status="refunded";
+  f.state.orders[0]!.status="refunded";
   assert.equal((await f.deliver(f.event(id))).status,"refunded");
   await assert.rejects(f.service.requestChat(alice,id),denied("FORBIDDEN"));
 });
@@ -101,7 +101,7 @@ test("결제 기록 저장 중 예외가 나면 트랜잭션 전체가 롤백된
   f.state.profiles=null as unknown as string[];
   await assert.rejects(f.deliver(f.event(order.orderId)));
   assert.equal(f.state.payments.length,0);
-  assert.equal(f.state.orders[0].status,"pending");
+  assert.equal(f.state.orders[0]!.status,"pending");
   f.state.profiles=profiles;
 });
 
@@ -118,10 +118,10 @@ test("수신자는 결제 없이 수락하고, 동시 수락은 채팅방 하나
   const rooms=await Promise.all(Array.from({length:5},()=>f.service.acceptChat(bob,request.id)));
   assert.equal(f.state.rooms.length,1);
   assert.equal(new Set(rooms.map(x=>x.conversationId)).size,1);
-  const message=await f.service.sendMessage(bob,rooms[0].conversationId,"안녕!");
+  const message=await f.service.sendMessage(bob,rooms[0]!.conversationId,"안녕!");
   assert.equal(message.senderId,"bob");
   assert.equal(f.state.orders.length,1);
-  assert.deepEqual(await f.service.createOrder(bob,"b-a"),{kind:"chat_available",conversationId:rooms[0].conversationId});
+  assert.deepEqual(await f.service.createOrder(bob,"b-a"),{kind:"chat_available",conversationId:rooms[0]!.conversationId});
 });
 
 test("거절한 요청은 반복 클릭해도 새로 생성하지 않는다", async () => {
@@ -143,7 +143,7 @@ test("차단 후에는 요청·전송·기록 조회를 차단한다", async () 
   f.state.blocks.push(["bob","alice"]);
   await assert.rejects(f.service.messages(alice,room),denied("BLOCKED"));
   await assert.rejects(f.service.sendMessage(bob,room,"차단됨"),denied("BLOCKED"));
-  await assert.rejects(f.service.requestChat(alice,f.state.orders[0].id),denied("BLOCKED"));
+  await assert.rejects(f.service.requestChat(alice,f.state.orders[0]!.id),denied("BLOCKED"));
 });
 
 test("빈 메시지·과도한 길이는 거부하고 재접속 커서 이후 기록을 반환한다", async () => {

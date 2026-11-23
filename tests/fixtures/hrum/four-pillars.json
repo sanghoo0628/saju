@@ -1,0 +1,96 @@
+{
+  "success": true,
+  "data": {
+    "wonkuk": {
+      "year": {
+        "stem": "기",
+        "branch": "묘"
+      },
+      "month": {
+        "stem": "정",
+        "branch": "축"
+      },
+      "day": {
+        "stem": "임",
+        "branch": "신"
+      },
+      "hour": {
+        "stem": "정",
+        "branch": "미"
+      }
+    },
+    "ohaengBalance": {
+      "목": 1,
+      "화": 2,
+      "토": 3,
+      "금": 1,
+      "수": 1
+    },
+    "yongshin": "수",
+    "yongshinDetail": {
+      "method": "억부",
+      "primary": "수",
+      "secondary": [
+        "금"
+      ],
+      "reasoning": [
+        "일간 임(수) 신약",
+        "신약 + root 있음(8) → 비겁(수)"
+      ],
+      "shin": {
+        "yongshin": "수",
+        "huishin": "금",
+        "gishin": "토",
+        "gushin": "화",
+        "hanshin": "목"
+      },
+      "element_states": {
+        "목": {
+          "count": 1,
+          "state": "lack",
+          "effect": "neutral"
+        },
+        "화": {
+          "count": 2,
+          "state": "balanced",
+          "effect": "neutral"
+        },
+        "토": {
+          "count": 3,
+          "state": "balanced",
+          "effect": "neutral"
+        },
+        "금": {
+          "count": 1,
+          "state": "lack",
+          "effect": "positive"
+        },
+        "수": {
+          "count": 1,
+          "state": "lack",
+          "effect": "positive"
+        }
+      }
+    },
+    "eokbuYongshin": "수",
+    "johuYongshin": "화",
+    "strength": {
+      "dayMaster": "임",
+      "score": -66,
+      "result": "신약",
+      "level": "중약",
+      "breakdown": {
+        "season": -30,
+        "support": 8,
+        "control": -38,
+        "hidden": -9,
+        "root": 8
+      },
+      "root": {
+        "rooted": true,
+        "rootScore": 8
+      }
+    },
+    "trueSolarTime": null
+  }
+}

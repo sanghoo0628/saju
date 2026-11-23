@@ -1,4 +1,5 @@
-:root {
+@scope (.payment-chat-experience) {
+:scope {
   font-family:
     -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic",
     sans-serif;
@@ -17,7 +18,7 @@
 * {
   box-sizing: border-box;
 }
-body {
+:scope {
   margin: 0;
 }
 button,
@@ -2320,4 +2321,6 @@ button svg {
   color: #806774;
   font-size: 11px;
   line-height: 1.6;
+}
+
 }

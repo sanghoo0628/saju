@@ -38,8 +38,8 @@ function fake() {
     filter?: unknown;
     event?: (data: unknown) => void;
     status?: (s: string) => void;
-    on: Function;
-    subscribe: Function;
+    on: (...args: never[]) => unknown;
+    subscribe: (...args: never[]) => unknown;
   }[] = [];
   let authChange: ((event: string, session: unknown) => void) | undefined;
   let authUnsubscribes = 0,

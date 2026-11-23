@@ -1,0 +1,56 @@
+최신 후속 작업: A/C 통합 코드·검사·커밋 정보는 C_A_INTEGRATION_2026-11-23.txt를 먼저 확인한다.
+아래는 같은 날 통합 전 실시한 DB 읽기 검증 기록이며, 당시의 미병합·미커밋 설명은 이후 통합으로 대체된다.
+
+C 담당 재개 기록 — 2026-11-23 (Asia/Seoul)
+
+B 답변 반영 및 실제 개발 DB 확인
+- Supabase saju-dev, 프로젝트 ref acghfykdtorpxkbmknja (싱가포르).
+- 받은 DATABASE_URL, SCORE_HMAC_SECRET 및 프로젝트 URL을 .env.local에 저장했다.
+- .env.local은 파일 권한 0600, Git ignore 대상이다. 비밀 값은 이 문서에 포함하지 않는다.
+- publishable key, Supabase secret key, Groble 키는 아직 제공되지 않았다.
+
+읽기 전용 검증 완료
+- Supabase 공식 배포 CA를 명시하고 rejectUnauthorized: true로 TLS 서버 인증에 성공했다.
+- CA 로컬 경로: ../work/supabase-prod-ca-2021.crt (저장소 밖).
+- 최초 기본 CA / 시스템 CA만으로는 SELF_SIGNED_CERT_IN_CHAIN 오류가 났다.
+- BEGIN ISOLATION LEVEL SERIALIZABLE READ ONLY 안에서 SET LOCAL ROLE service_role 성공.
+- 트랜잭션 안 current_user=service_role, read_only=on, isolation=serializable 확인.
+- ROLLBACK 뒤 current_user=postgres로 복구 확인.
+- 마이그레이션 이력 20261116000100~20261116000600 총 6개 확인.
+- public 테이블 11개 모두 RLS 활성 확인. 실제 사용자별 RLS 동작을 검증한 것은 아니다.
+- C 재시도 대상 이름 5개 모두 존재:
+  orders_active_pair_uniq
+  chat_requests_requester_id_recipient_id_key
+  conversations_user_a_user_b_key
+  payments_pkey
+  payments_order_id_key
+- C 주문/결제/요청/대화/메시지 SQL에 필요한 컬럼 이름 모두 존재.
+- private.profile_available(uuid), private.is_blocked_between(uuid, uuid) 존재 및 service_role 실행 권한 확인.
+- 존재하지 않는 UUID로 위 두 함수를 실행했고 모두 false 반환 확인.
+- messages가 supabase_realtime publication에 등록되어 있음.
+- profile-photos 버킷 존재, 비공개(public=false).
+- authenticated는 match_results.target_id 조회 가능, target_score/distance 조회 불가.
+- 테스트 데이터 생성·결제·메시지 쓰기·마이그레이션 재적용은 하지 않았다.
+- 원본의 비밀 값/사용자 데이터 없는 메타데이터 보고서: ../work/supabase-readonly-2026-11-23.json
+
+원격 최신 코드 (fetch 완료, 아직 병합하지 않음)
+- C: codex/c-payment-chat, 964bf6d (이 문서 작성 전 기준).
+- A: feature/a-auth-fortune, dd336a2. Next.js·학교 인증·사주 API 코드가 새로 올라옴.
+- B: feature/b-db-matching, bb0de40. env 이름, Supabase CLI 설정, 점수/거리 조회 권한 관련 변경.
+- main: 31d1941, 수정하지 않음.
+- C tracked 소스 코드, 잠금 파일, 마이그레이션은 이번 확인에서 수정하지 않음.
+- 이번 확인에서 커밋·푸시하지 않았다. 이 인수인계 문서는 로컬 저장 상태다.
+
+실제 연결 시 주의할 구현 사항
+- pg 풀은 Supabase CA를 읽어 options.pool.ssl={ca, rejectUnauthorized:true}로 전달해야 한다.
+  createPaymentChatDatabase는 PoolConfig를 전달받을 수 있지만 현재 자동 CA 로더는 없다.
+  접속 성공을 위해 인증서 검증을 비활성화하지 않는다.
+- DATABASE_URL은 서버 전용이고, HMAC 비밀 키는 B가 준 동일 값 유지.
+- 새 env 이름: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, NEXT_PUBLIC_APP_URL.
+  C의 tracked .env.example은 아직 예전 이름이므로 A/B 통합 시 함께 정리한다.
+- A의 실제 사주 API/환경 변수, 로그인 함수, 패키지·Node 버전은 A 브랜치를 병합하기 전에 확인한다.
+- 실제 로그인 사용자 2명과 제3자 계정으로 요청·수락·메시지·차단·Realtime을 검증해야 한다.
+- 네이티브 PostgreSQL 동시성/재시도 테스트 10개는 이번에도 실행하지 않았다.
+- 기존 테스트 251개 통과 기록은 이전 구현 당시 결과이며 이번에 다시 실행하지 않았다.
+- Groble 서명/테스트 결제/환불 규격 답변은 계속 대기 중이다.
+- 무료 추천 3명 → 선택한 상대당 500원 → 대화 요청 → 수락 후 채팅 기준 유지.

@@ -64,8 +64,8 @@ test("잘못된 방의 기록 배치는 기존 기록과 커서를 변경하지 
 test("외부 객체 수정은 화면 내부 기록을 바꾸지 않고 clear는 잔존 데이터를 제거한다",()=>{
   const feed=createMessageTimeline("room-1"), incoming=message(1);
   feed.receive(incoming);incoming.body="외부 수정";
-  const snapshot=feed.snapshot();snapshot.messages[0].body="화면 수정";
-  assert.equal(feed.snapshot().messages[0].body,"내용 1");
+  const snapshot=feed.snapshot();snapshot.messages[0]!.body="화면 수정";
+  assert.equal(feed.snapshot().messages[0]!.body,"내용 1");
   const stale=feed.nextHistoryPage();feed.clear();
   assert.equal(feed.appendHistory([message(2)],stale),false);
   assert.deepEqual(feed.snapshot().messages,[]);

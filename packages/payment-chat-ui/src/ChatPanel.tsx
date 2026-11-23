@@ -60,12 +60,15 @@ function Conversation({
   const sendController = useRef<AbortController | null>(null);
   const active = useRef(false);
   const scroll = useRef<HTMLDivElement>(null);
+  const roomId = room.id;
+  const [memberA, memberB] = room.members;
+  const roomCreatedAt = room.createdAt;
   useEffect(() => {
     active.current = true;
     accessDenied.current = false;
     const session = createMessageSession({
       userId: currentUserId,
-      conversation: room,
+      conversation: { id: roomId, members: [memberA, memberB], createdAt: roomCreatedAt },
       client: api,
       source: messageSource,
     });
@@ -98,9 +101,10 @@ function Conversation({
     };
   }, [
     api,
-    room.id,
-    room.members[0],
-    room.members[1],
+    roomId,
+    memberA,
+    memberB,
+    roomCreatedAt,
     currentUserId,
     messageSource,
   ]);

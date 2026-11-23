@@ -112,7 +112,7 @@ test("없는 API와 잘못된 HTTP 메서드는 404·405와 Allow를 반환한�
 
 test("HTTP에서도 제3자의 주문·채팅 조회와 작성자 위조를 거부한다", async () => {
   const { f, request }=setup();
-  const room=await f.room(), orderId=f.state.orders[0].id;
+  const room=await f.room(), orderId=f.state.orders[0]!.id;
   assert.equal((await request(`/api/orders/${orderId}`,{user:"eve"})).status,403);
   assert.equal((await request(`/api/conversations/${room}/messages`,{user:"eve"})).status,403);
   assert.equal((await request(`/api/conversations/${room}/messages`,{method:"POST",user:"alice",body:{body:"hi",senderId:"bob"}})).status,400);
@@ -142,7 +142,7 @@ test("받은 요청과 대화 목록은 본인에게만 보이고 차단 시 사
   assert.equal((await request(`/api/chat-requests?afterId=${invitation.id}`,{user:"eve"})).status,400);
   const {conversationId}=await f.service.acceptChat({userId:"bob"},invitation.id);
   const rooms=await (await request("/api/conversations",{user:"bob"})).json();
-  assert.equal(rooms[0].id,conversationId);
+  assert.equal(rooms[0]!.id,conversationId);
   assert.deepEqual(await (await request("/api/conversations",{user:"eve"})).json(),[]);
   assert.equal((await request(`/api/conversations?afterId=${conversationId}`,{user:"eve"})).status,400);
   f.state.blocks.push(["alice","bob"]);

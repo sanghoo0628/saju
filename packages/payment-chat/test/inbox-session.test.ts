@@ -102,7 +102,7 @@ test("주기 조회로 새 요청과 수락 상태를 반영하고 선택한 요
   const f = setup();
   f.session.start();
   await flush();
-  let selection = { kind: "request" as const, id: request().id };
+  const selection = { kind: "request" as const, id: request().id };
   assert.deepEqual(
     reconcileInboxSelection(selection, ME, f.session.snapshot()),
     selection,

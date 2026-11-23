@@ -20,7 +20,7 @@ test("브라우저 클라이언트에서 실제 HTTP 어댑터와 핵심 로직�
   const invitation=await alice.requestChat(order.orderId);
   assert.deepEqual(await bob.requests(),[invitation]);
   const {conversationId}=await bob.acceptChat(invitation.id);
-  assert.equal((await alice.conversations())[0].id,conversationId);
+  assert.equal((await alice.conversations())[0]!.id,conversationId);
   const message=await bob.sendMessage(conversationId,"반가워!");
   assert.deepEqual(await alice.messages(conversationId),[message]);
   assert.deepEqual(await alice.messages(conversationId,message.id),[]);
