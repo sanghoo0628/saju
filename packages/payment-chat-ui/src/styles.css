@@ -1843,6 +1843,7 @@ button svg {
   .hero {
     min-height: 330px;
     padding: 34px 0 30px;
+    overflow: clip;
   }
   .hero-copy {
     position: relative;

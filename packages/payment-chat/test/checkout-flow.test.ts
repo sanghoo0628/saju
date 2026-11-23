@@ -134,3 +134,71 @@ test("다른 주문의 응답은 대화 권한으로 사용하지 않는다",asy
   await flow.resume("order-1");
   assert.equal(flow.snapshot().kind,"confirmation_pending");
 });
+
+test('환불 재확인 연결 오류는 마지막 환불 대기를 유지하고 복구 후 완료 상태를 반영한다', async () => {
+  let mode: 'refund_pending' | 'offline' | 'refunded' = 'refund_pending';
+  let creates = 0;
+  const flow = createCheckoutFlow({ client: client({
+    createOrder: async () => { creates++; return checkout; },
+    order: async () => {
+      if (mode === 'offline') throw new TypeError('offline');
+      return order(mode);
+    },
+  }), maxAttempts: 2, delay: instant });
+  await flow.resume('order-1');
+  mode = 'offline';
+  await flow.resume('order-1');
+  const failed = flow.snapshot();
+  assert.equal(failed.kind, 'refund_pending');
+  if (failed.kind !== 'refund_pending') throw new Error('refund state missing');
+  assert.equal(failed.orderId, 'order-1');
+  assert.match(failed.refreshError ?? '', /마지막으로 확인한 상태는 환불 대기/);
+  mode = 'refunded';
+  await flow.resume('order-1');
+  assert.deepEqual(flow.snapshot(), { kind: 'refunded', orderId: 'order-1' });
+  assert.equal(creates, 0);
+});
+
+test('환불 재확인 시간 초과도 환불 대기와 같은 주문을 유지한다', async () => {
+  let stall = false;
+  const flow = createCheckoutFlow({ client: client({ order: async (_id, signal) => {
+    if (!stall) return order('refund_pending');
+    return new Promise((_resolve, reject) => {
+      signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+    });
+  } }), timeoutMs: 20 });
+  await flow.resume('order-1');
+  stall = true;
+  await flow.resume('order-1');
+  const state = flow.snapshot();
+  assert.equal(state.kind, 'refund_pending');
+  if (state.kind !== 'refund_pending') throw new Error('refund state missing');
+  assert.match(state.refreshError ?? '', /확인하지 못했어요/);
+});
+
+test('다른 주문 재확인과 인증 실패에는 이전 환불 상태를 재사용하지 않는다', async () => {
+  let mode: 'refund_pending' | 'offline' | 'unauthorized' = 'refund_pending';
+  const flow = createCheckoutFlow({ client: client({ order: async () => {
+    if (mode === 'offline') throw new TypeError('offline');
+    if (mode === 'unauthorized') throw new PaymentChatClientError('UNAUTHENTICATED', '다시 로그인해주세요.', 401);
+    return order('refund_pending');
+  } }), maxAttempts: 1 });
+  await flow.resume('order-1');
+  mode = 'unauthorized';
+  await flow.resume('order-1');
+  assert.equal(flow.snapshot().kind, 'error');
+  mode = 'refund_pending';
+  await flow.resume('order-1');
+  mode = 'offline';
+  await flow.resume('other-order');
+  assert.deepEqual(flow.snapshot(), { kind: 'confirmation_pending', orderId: 'other-order' });
+});
+
+test('서버가 새 pending 상태를 확인해 주면 이전 환불 상태보다 새 응답을 우선한다', async () => {
+  let status: OrderResponse['status'] = 'refund_pending';
+  const flow = createCheckoutFlow({ client: client({ order: async () => order(status) }), maxAttempts: 1 });
+  await flow.resume('order-1');
+  status = 'pending';
+  await flow.resume('order-1');
+  assert.deepEqual(flow.snapshot(), { kind: 'confirmation_pending', orderId: 'order-1' });
+});

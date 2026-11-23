@@ -115,6 +115,9 @@ export function PaymentDialog({
           {actionError}
         </p>
       ) : null}
+      {state.kind === "refund_pending" && state.refreshError ? (
+        <p className="inline-error" role="alert">{state.refreshError}</p>
+      ) : null}
       {"orderId" in state && state.orderId ? (
         <p className="order-reference">
           주문 번호 <span>{state.orderId}</span>

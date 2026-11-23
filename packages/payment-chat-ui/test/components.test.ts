@@ -83,6 +83,16 @@ function panel(options: Partial<Parameters<typeof ChatPanel>[0]> = {}) {
 }
 
 describe("reusable payment UI", () => {
+  it("keeps refund context and offers only a refund recheck after connection failure", () => {
+    const html = payment({ kind: "refund_pending", orderId: "order", refreshError: "최신 환불 상태를 확인하지 못했어요." });
+    expect(html).toContain("최신 환불 상태를 확인하지 못했어요.");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("아직 환불이 완료된 상태는 아니에요.");
+    expect(html).toContain("환불 상태 다시 확인");
+    expect(html).not.toContain("500원 결제하기");
+    expect(html).not.toContain("대화 요청 보내기");
+  });
+
   it("accepts B's public profile without score/year and renders real checkout only", () => {
     const html = payment({
       kind: "payment_required",

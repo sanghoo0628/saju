@@ -8,7 +8,7 @@ export type CheckoutState =
   | { kind: "checking"; orderId: string; attempt: number }
   | { kind: "confirmation_pending"; orderId: string }
   | { kind: "chat_available"; orderId?: string; conversationId?: string }
-  | { kind: "refund_pending" | "refunded" | "cancelled"; orderId: string }
+  | { kind: "refund_pending" | "refunded" | "cancelled"; orderId: string; refreshError?: string }
   | { kind: "error"; message: string; orderId?: string; matchResultId?: string };
 
 type Client = Pick<ReturnType<typeof createBrowserClient>, "createOrder" | "order">;
@@ -99,8 +99,13 @@ export function createCheckoutFlow(options: {
       });
     },
     resume(orderId: string): Promise<void> {
+      const previousRefund = state.kind === "refund_pending" && state.orderId === orderId ? { ...state } : undefined;
       return run(`resume:${orderId}`, async op => {
         if (!op.active()) return;
+        let receivedPending = false;
+        const unconfirmed = (): CheckoutState => previousRefund && !receivedPending
+          ? { ...previousRefund, refreshError: "최신 환불 상태를 확인하지 못했어요. 마지막으로 확인한 상태는 환불 대기예요. 연결을 확인한 뒤 다시 시도해주세요." }
+          : { kind: "confirmation_pending", orderId };
         const timer = setTimeout(() => op.controller.abort(new DOMException("결제 확인 시간 초과", "TimeoutError")), timeout);
         try {
           for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -114,7 +119,7 @@ export function createCheckoutFlow(options: {
                 case "fulfilled": emit({ kind: "chat_available", orderId }); return;
                 case "refund_pending": case "refunded": case "cancelled":
                   emit({ kind: result.status, orderId }); return;
-                case "pending": break;
+                case "pending": receivedPending = true; break;
                 default: throw new PaymentChatClientError("INVALID_RESPONSE", "주문 상태를 확인할 수 없습니다.", 502);
               }
             } catch (error) {
@@ -123,13 +128,13 @@ export function createCheckoutFlow(options: {
             }
             if (attempt < attempts) await (options.delay ?? wait)(interval, op.controller.signal);
           }
-          if (op.active()) emit({ kind: "confirmation_pending", orderId });
+          if (op.active()) emit(unconfirmed());
         } catch (error) {
           if (op.active()) emit({ kind: "error", message: messageFor(error), orderId });
         } finally {
           clearTimeout(timer);
           if (op.sameGeneration() && op.controller.signal.aborted)
-            emit({ kind: "confirmation_pending", orderId });
+            emit(unconfirmed());
         }
       });
     },
