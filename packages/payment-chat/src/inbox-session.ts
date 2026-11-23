@@ -4,6 +4,7 @@ import type {
 } from "../../../contracts/payment-chat.ts";
 import { PaymentChatClientError, type createBrowserClient } from "./client.ts";
 import { schedule, type Schedule } from "./message-source.ts";
+import { compareTimestamps } from "./compare-timestamps.ts";
 
 export type InboxSelection = { kind: "request" | "room"; id: string } | null;
 export interface InboxSnapshot {
@@ -25,7 +26,7 @@ const order = (
   a: { id: string; createdAt: string },
   b: { id: string; createdAt: string },
 ) =>
-  Date.parse(b.createdAt) - Date.parse(a.createdAt) ||
+  compareTimestamps(b.createdAt, a.createdAt) ||
   (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 const copyRequest = (r: ChatRequestResponse): ChatRequestResponse => ({
   id: r.id,

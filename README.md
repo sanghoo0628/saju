@@ -43,7 +43,7 @@ CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS �
 ## 검사
 
 ```bash
-pnpm test        # B/DB+연동 114, C 161, A 97, UI 24 = 396
+pnpm test        # B/DB+연동 114, C 167, A 97, UI 24 = 402
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -56,7 +56,7 @@ pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 12개
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
 네이티브 PostgreSQL 검사 12개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45133936967)에서 모두 통과했습니다.
-로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 396개에 포함되지 않습니다.
+로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 402개에 포함되지 않습니다.
 
 C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
 문서만 바뀐 커밋은 제외합니다. 실제 Supabase/사주/결제 키는 CI에 필요하지 않습니다.
@@ -72,6 +72,8 @@ C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이
 [채팅 읽기 위치 유지와 최신 메시지 이동](docs/C_CHAT_READING_POSITION_2026-11-23.txt)에 최신 화면 변경을 정리했습니다.
 
 [이전 대화 요청 조회](docs/C_REQUEST_HISTORY_2026-11-23.txt)에 최신 화면 변경을 정리했습니다.
+
+[메시지 시각 정밀도와 순서 보정](docs/C_TIMESTAMP_PRECISION_2026-11-23.txt)에 최신 변경을 정리했습니다.
 
 ## 독립 C 화면 데모
 

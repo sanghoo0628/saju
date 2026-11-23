@@ -12,6 +12,9 @@ import {
 import { createPaymentChatDatabase } from "../../src/server/postgres-repository";
 import { createService } from "../../packages/payment-chat/src/service.ts";
 import { createHttpApi } from "../../packages/payment-chat/src/http.ts";
+import { createBrowserClient } from "../../packages/payment-chat/src/client.ts";
+import { createMessageTimeline } from "../../packages/payment-chat/src/message-timeline.ts";
+import { decodeInsertedMessage } from "../../packages/payment-chat/src/supabase-message-source.ts";
 import type {
   CompletedPayment,
   Repository,
@@ -182,11 +185,25 @@ it("uses database-precision message anchors and enforces room scope", async () =
     '2026-11-17 00:00:00+00'::timestamptz + i * interval '1 microsecond' from generate_series(0,104) i`,
     [one, ME],
   );
-  const first = await service.messages(actor, one);
+  const origin = "https://saju.test";
+  const handler = createHttpApi({service,appOrigin:origin,getCurrentUserId:async()=>ME});
+  const api = createBrowserClient(async (path,init) => handler(new Request(new URL(String(path),origin),init)));
+  const first = await api.messages(one);
   expect(first).toHaveLength(100);
-  expect(
-    (await service.messages(actor, one, first[99]!.id)).map((m) => m.body),
-  ).toEqual(["100", "101", "102", "103", "104"]);
+  expect(first[0]!.createdAt).toBe("2026-11-17T00:00:00.000Z");
+  expect(first[1]!.createdAt).toBe("2026-11-17T00:00:00.000001Z");
+  const next = await api.messages(one, first[99]!.id);
+  expect(next.map(m=>m.body)).toEqual(["100", "101", "102", "103", "104"]);
+  const feed = createMessageTimeline(one);
+  const duplicate = first[50]!;
+  feed.receive(decodeInsertedMessage({eventType:"INSERT",schema:"public",table:"messages",new:{
+    id:duplicate.id,conversation_id:one,sender_id:duplicate.senderId,body:duplicate.body,
+    created_at:duplicate.createdAt.replace("Z","+00:00"),
+  }},one));
+  feed.appendHistory(first,feed.nextHistoryPage());
+  feed.appendHistory(next,feed.nextHistoryPage());
+  expect(feed.snapshot().messages.map(m=>m.body)).toEqual(Array.from({length:105},(_,i)=>String(i)));
+  expect((await database.repository.transaction(tx=>tx.message(first[1]!.id)))?.createdAt).toBe(first[1]!.createdAt);
   await expect(
     service.messages(actor, two, first[0]!.id),
   ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
@@ -210,6 +227,10 @@ it("paginates descending requests/rooms with microsecond precision and rejects f
   expect(
     (await service.requests(actor, requests[2]!.id)).map((r) => r.id),
   ).toEqual([requests[1]!.id, requests[0]!.id]);
+  const preservedRooms = await service.conversations(actor);
+  const preservedRequests = await service.requests(actor);
+  expect(preservedRooms[0]!.createdAt).toBe("2026-11-17T00:00:00.000002Z");
+  expect(preservedRequests[0]!.createdAt).toBe("2026-11-17T00:00:00.000002Z");
   await expect(
     service.conversations({ userId: OTHER }, rooms[0]),
   ).rejects.toMatchObject({ code: "INVALID_REQUEST" });

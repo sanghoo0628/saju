@@ -18,6 +18,14 @@ test("역순 실시간 이벤트도 시간과 ID 기준으로 정렬한다",()=>
   assert.deepEqual(feed.snapshot().messages.map(x=>x.id),[1,2,3].map(n=>message(n).id));
 });
 
+test("같은 밀리초 안의 메시지도 DB의 마이크로초 순서를 유지한다",()=>{
+  const feed=createMessageTimeline("room-1");
+  const earlier={...message(9),body:"earlier",createdAt:"2026-11-23T00:00:00.000001Z"};
+  const later={...message(1),body:"later",createdAt:"2026-11-23T00:00:00.000002Z"};
+  feed.receive(later);feed.appendHistory([earlier,later],feed.nextHistoryPage());
+  assert.deepEqual(feed.snapshot().messages.map(value=>value.body),["earlier","later"]);
+});
+
 test("실시간 최신 메시지를 받아도 DB 과거 기록 커서를 건너뛰지 않는다",()=>{
   const feed=createMessageTimeline("room-1");
   feed.receive(message(300));

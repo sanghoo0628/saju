@@ -228,6 +228,7 @@ describe("native PostgreSQL: production pool + C service + B migrations", () => 
       );
     const page = await service.messages(actor, first);
     expect(page).toHaveLength(100);
+    expect(page[1]!.createdAt).toBe("2026-11-17T00:00:00.000001Z");
     const next = await service.messages(actor, first, page[99]!.id);
     expect(next.map((m) => m.body)).toEqual([
       "100",

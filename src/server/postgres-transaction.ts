@@ -25,16 +25,20 @@ type RequestRow = {
   recipient_id: string;
   order_id: string;
   status: ChatRequest["status"];
-  created_at: Date;
+  created_at_iso: string;
 };
-type RoomRow = { id: string; user_a: string; user_b: string; created_at: Date };
+type RoomRow = { id: string; user_a: string; user_b: string; created_at_iso: string };
 type MessageRow = {
   id: string;
   conversation_id: string;
   sender_id: string;
   body: string;
-  created_at: Date;
+  created_at_iso: string;
 };
+// Read the timestamp as server-formatted text before pg can truncate it to a JS Date.
+const timestampColumn = `to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at_iso`;
+// Preserve the established millisecond representation when no finer digits exist.
+const timestamp = (value: string) => value.replace(/(\.\d{3})000Z$/, "$1Z");
 const order = (r: OrderRow): Order => ({
   id: r.id,
   userId: r.buyer_id,
@@ -50,19 +54,19 @@ const request = (r: RequestRow): ChatRequest => ({
   to: r.recipient_id,
   orderId: r.order_id,
   status: r.status,
-  createdAt: r.created_at.toISOString(),
+  createdAt: timestamp(r.created_at_iso),
 });
 const room = (r: RoomRow): Conversation => ({
   id: r.id,
   members: [r.user_a, r.user_b],
-  createdAt: r.created_at.toISOString(),
+  createdAt: timestamp(r.created_at_iso),
 });
 const message = (r: MessageRow): ChatMessage => ({
   id: r.id,
   conversationId: r.conversation_id,
   senderId: r.sender_id,
   body: r.body,
-  createdAt: r.created_at.toISOString(),
+  createdAt: timestamp(r.created_at_iso),
 });
 
 /** Server-only SQL mapping shared by the pg pool and migration tests. */
@@ -167,12 +171,12 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
     },
     request: (id) =>
       requestQuery(
-        `select * from public.chat_requests where id=$1 for update`,
+        `select *, ${timestampColumn} from public.chat_requests where id=$1 for update`,
         [id],
       ),
     requestForPair: (a, b) =>
       requestQuery(
-        `select * from public.chat_requests where requester_id=$1 and recipient_id=$2 for update`,
+        `select *, ${timestampColumn} from public.chat_requests where requester_id=$1 and recipient_id=$2 for update`,
         [a, b],
       ),
     async saveRequest(value) {
@@ -195,7 +199,7 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
         ? await anchor("chat_requests", afterId, scope, [userId])
         : undefined;
       const rows = await q.query(
-        `select * from public.chat_requests where ($1=requester_id or $1=recipient_id)
+        `select *, ${timestampColumn} from public.chat_requests where ($1=requester_id or $1=recipient_id)
         and not private.is_blocked_between(requester_id,recipient_id)
         ${cursor ? "and (created_at,id)<(select created_at,id from public.chat_requests where id=$2)" : ""} order by created_at desc,id desc limit 100`,
         cursor ? [userId, cursor.id] : [userId],
@@ -203,10 +207,10 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
       return (rows.rows as RequestRow[]).map(request);
     },
     conversation: (id) =>
-      roomQuery(`select * from public.conversations where id=$1`, [id]),
+      roomQuery(`select *, ${timestampColumn} from public.conversations where id=$1`, [id]),
     conversationForPair: (a, b) =>
       roomQuery(
-        `select * from public.conversations where user_a=least($1::uuid,$2::uuid) and user_b=greatest($1::uuid,$2::uuid)`,
+        `select *, ${timestampColumn} from public.conversations where user_a=least($1::uuid,$2::uuid) and user_b=greatest($1::uuid,$2::uuid)`,
         [a, b],
       ),
     async saveConversation(value) {
@@ -222,7 +226,7 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
         ? await anchor("conversations", afterId, scope, [userId])
         : undefined;
       const rows = await q.query(
-        `select * from public.conversations where ($1=user_a or $1=user_b)
+        `select *, ${timestampColumn} from public.conversations where ($1=user_a or $1=user_b)
         and not private.is_blocked_between(user_a,user_b)
         ${cursor ? "and (created_at,id)<(select created_at,id from public.conversations where id=$2)" : ""} order by created_at desc,id desc limit 100`,
         cursor ? [userId, cursor.id] : [userId],
@@ -230,7 +234,7 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
       return (rows.rows as RoomRow[]).map(room);
     },
     async message(id) {
-      const row = await one<MessageRow>('select * from public.messages where id=$1', [id]);
+      const row = await one<MessageRow>(`select *, ${timestampColumn} from public.messages where id=$1`, [id]);
       return row ? message(row) : undefined;
     },
     async saveMessage(value) {
@@ -252,7 +256,7 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
           ])
         : undefined;
       const rows = await q.query(
-        `select * from public.messages where conversation_id=$1
+        `select *, ${timestampColumn} from public.messages where conversation_id=$1
         ${cursor ? "and (created_at,id)>(select created_at,id from public.messages where id=$2)" : ""} order by created_at,id limit 100`,
         cursor ? [conversationId, cursor.id] : [conversationId],
       );

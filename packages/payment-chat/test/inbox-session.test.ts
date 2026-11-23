@@ -84,6 +84,22 @@ function setup() {
   };
 }
 
+test("요청과 방 목록 모두 마이크로초를 보존해 최신순으로 정렬한다", async () => {
+  const f = setup();
+  f.requests = [
+    {...request(9),createdAt:"2026-11-23T00:00:00.000001Z"},
+    {...request(1),createdAt:"2026-11-23T09:00:00.000002+09:00"},
+  ];
+  f.rooms = [
+    {...room(9),createdAt:"2026-11-23T00:00:00.000001Z"},
+    {...room(1),createdAt:"2026-11-23T00:00:00.000002Z"},
+  ];
+  f.session.start(); await flush();
+  assert.deepEqual(f.session.snapshot().requests.map(value=>value.id),["request-1","request-9"]);
+  assert.deepEqual(f.session.snapshot().rooms.map(value=>value.id),["room-1","room-9"]);
+  f.session.dispose();
+});
+
 test("목록 두 개가 모두 성공한 뒤에만 함께 반영한다", async () => {
   const f = setup(),
     response = deferred<ConversationResponse[]>();

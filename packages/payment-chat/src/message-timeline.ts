@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../../../contracts/payment-chat.ts";
+import { compareTimestamps } from "./compare-timestamps.ts";
 
 export interface MessageTimelineSnapshot {
   messages: ChatMessage[];
@@ -31,7 +32,7 @@ export function createMessageTimeline(conversationId: string) {
   function snapshot(): MessageTimelineSnapshot {
     return {
       messages: [...byId.values()].map(message => ({ ...message })).sort((a,b) =>
-        Date.parse(a.createdAt) - Date.parse(b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+        compareTimestamps(a.createdAt, b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
       historyCursor: cursor, historyComplete: complete,
     };
   }
