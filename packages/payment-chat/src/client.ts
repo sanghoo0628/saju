@@ -16,7 +16,7 @@ export class PaymentChatClientError extends Error {
 }
 
 /** 브라우저용. 로그인 쿠키를 사용하는 같은 출처의 API만 호출한다. */
-export function createBrowserClient(fetcher: typeof fetch = fetch, options: {
+export function createBrowserRequest(fetcher: typeof fetch = fetch, options: {
   timeoutMs?: number;
   schedule?: Schedule;
 } = {}) {
@@ -54,11 +54,14 @@ export function createBrowserClient(fetcher: typeof fetch = fetch, options: {
         throw new PaymentChatClientError("INVALID_RESPONSE","서버 응답을 확인할 수 없습니다.",response.status);
       }
       controller.signal.throwIfAborted();
-      if (!response.ok) throw new PaymentChatClientError(
-        typeof payload?.code === "string" ? payload.code : "INTERNAL_ERROR",
-        typeof payload?.message === "string" ? payload.message : "요청을 처리하지 못했습니다.",
-        response.status,
-      );
+      if (!response.ok) {
+        const failure = typeof payload?.code === "string" ? payload : payload?.error;
+        throw new PaymentChatClientError(
+          typeof failure?.code === "string" ? failure.code : "INTERNAL_ERROR",
+          typeof failure?.message === "string" ? failure.message : "요청을 처리하지 못했습니다.",
+          response.status,
+        );
+      }
       return payload as T;
     };
     try { return await Promise.race([work(), aborted]); }
@@ -68,6 +71,14 @@ export function createBrowserClient(fetcher: typeof fetch = fetch, options: {
       signal?.removeEventListener("abort", cancel);
     }
   }
+  return call;
+}
+
+export function createBrowserClient(fetcher: typeof fetch = fetch, options: {
+  timeoutMs?: number;
+  schedule?: Schedule;
+} = {}) {
+  const call = createBrowserRequest(fetcher, options);
   const segment = (id: string) => encodeURIComponent(id);
   const after = (id?: string) => id === undefined ? "" : `?afterId=${encodeURIComponent(id)}`;
   return {

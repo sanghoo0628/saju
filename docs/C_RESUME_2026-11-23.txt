@@ -1,3 +1,11 @@
+최신: SMTP 대기 중 추천 조회 복구 (2026-11-23)
+- C_MATCH_RESULTS_RECOVERY_2026-11-23.txt 및 C_AUTH_DELIVERY_2026-11-23.txt 확인.
+- 실제 학교 이메일 OTP는 Supabase over_email_send_rate_limit(429), Custom SMTP off 확인.
+- A가 B에게 SMTP/한도/숫자 토큰 템플릿 설정 요청. 완료 답변 대기 중.
+- 인증 오류 안내 c86b500 푸시, 무료 추천 GET의 15초 제한·취소·재시도 안내 연결.
+- 실제 메일 수신/실사용자 로그인은 아직 미검증. 현재 4300은 c86b500 빌드 유지.
+- 공유 DB/main 변경 없음. 아래는 이전 기록이다.
+
 최신: A 저장 코드 합류 후 통합 준비 도구 재검증 (2026-11-23)
 - C_INTEGRATION_TOOLS_2026-11-23.txt의 동시 원격 변경 반영 절을 확인한다.
 - C 원격 3e99ac7에 A 저장 코드가 합류해 문서 푸시를 fetch/rebase로 맞췄다.

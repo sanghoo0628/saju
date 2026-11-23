@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/browser';
+import { loadMatchResults } from '@/lib/match-results-client';
 import type { MatchResultCard, MatchResultsResponse } from '@/contracts/matching';
 import { ChatPanel, type ChatSelection } from '../../packages/payment-chat-ui/src/ChatPanel';
 import { PaymentDialog } from '../../packages/payment-chat-ui/src/PaymentDialog';
@@ -97,11 +98,9 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   useEffect(() => {
     if (view !== 'matches') return;
     const controller = new AbortController();
-    void fetch('/api/match-results', { cache: 'no-store', credentials: 'same-origin', signal: controller.signal })
-      .then(async response => {
-        const payload = await response.json();
-        if (!response.ok) throw new PaymentChatClientError(payload.error?.code ?? 'INTERNAL_ERROR', payload.error?.message ?? '추천을 불러오지 못했어요.', response.status);
-        if (!controller.signal.aborted) setMatches(payload as MatchResultsResponse);
+    void loadMatchResults(controller.signal)
+      .then(payload => {
+        if (!controller.signal.aborted) setMatches(payload);
       }).catch(error => { if (!controller.signal.aborted) { setMatches(null); setMatchError(safeError(error)); } })
       .finally(() => { if (!controller.signal.aborted) setMatchLoading(false); });
     return () => controller.abort();
