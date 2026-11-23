@@ -1,9 +1,10 @@
-# 📄 프로필 · 매칭 계약서 (B ↔ C) — v2
+# 📄 프로필 · 매칭 계약서 (B ↔ C, A 저장 계약 포함) — v3
 
 > 2026-11-16 기획 변경과 C 리뷰를 반영한 버전이다. v1(주문별 추천, 오행 배점, `create_match_for_order`)은 폐기했다.
 > SQL: [`supabase/migrations/`](../supabase/migrations) · 검증: `npm test`
 > (PGlite(WASM Postgres)에 Supabase auth/storage 스텁을 만들고 모든 마이그레이션을 적용한 뒤 RLS와 제약을 테스트한다)
-> **아직 실제 Supabase 에는 적용하지 않았다.** 이 계약을 C 와 맞춘 뒤 함께 통합한다.
+> 2026-11-23 v3: A 사주 입력 저장 계약(9장)과 후속 마이그레이션 `20261123000100` 추가. 기존 6개는 수정하지 않았다.
+> 기존 6개는 개발 DB(saju-dev)에 적용됐고 C 가 실제 연동을 검증했다. `20261123000100` 은 팀 확인 후 적용한다.
 
 ## 0. 과금 흐름과 v1 대비 변경
 
@@ -33,8 +34,9 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | 테이블 | 담당 | 키·주요 컬럼 | 브라우저(authenticated) 권한 |
 |---|---|---|---|
 | profiles | B | `id`, nickname(2~20), gender, university, major, bio, interests, photo_path, track, is_public, status(active/deleted) | 조회: `can_view_profile`. 수정: 본인 nickname·gender·university·major·bio·interests·photo_path·is_public 만 |
-| private_birth_data | B·A | `user_id`, birth_date, birth_time, calendar_type, is_leap_month, birth_place | 본인 조회 |
-| fortune_results | B·A | `user_id`, base_number, score, score_version, fortune(jsonb), program_version | 본인 조회 |
+| private_birth_data | B·A | `user_id`, calendar_type, birth_date(양력만), lunar_date(음력 원문), is_leap_month, timezone, consent_version, consented_at. birth_time 은 저장하지 않음 | 본인 조회 |
+| fortune_results | B | `user_id`, base_number, score, score_version, score_input(solar/lunar/lunar_leap), fortune·program_version(선택) | 본인 조회 |
+| fortune_analyses | B·A | `user_id`, A 의 matching_fortune_v1 (3주 원국·분석·비교 키·버전) | 없음 (서버 전용) |
 | match_results | B | `id`, user_id(추천받은 사람), target_id, rank, distance, target_score | 본인 조회 |
 | orders | C | `id`, buyer_id, target_id, match_result_id, amount(=500), status, reference | 본인 조회 |
 | payments | C | `transaction_id`, order_id(unique), amount | 없음 |
@@ -57,6 +59,7 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | `20261116000400_access_rls.sql` | 판단 함수, RLS, 테이블·컬럼 권한, Realtime |
 | `20261116000500_matching_functions.sql` | 후보 선정, 무료 추천 저장·조회 |
 | `20261116000600_storage_profile_photos.sql` | 비공개 사진 버킷과 정책 |
+| `20261123000100_birth_input_and_analysis.sql` | (후속) 음력 원문·시간대·동의 기록, 점수만 저장 허용, fortune_analyses, 사진 5MB·이미지 3종 제한 |
 
 ## 3. 무료 추천 (B)
 
@@ -75,9 +78,9 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 
 | 경로 | 설명 |
 |---|---|
-| `GET /api/match-results` | `{ status: 'ready'｜'fortune_required'｜'profile_required'｜'no_candidates', results: [{ id, rank, profile }] }` — **`id` 가 C 의 `matchResultId`** |
-| `GET /api/profile` | 내 프로필 (없으면 null) |
-| `PUT /api/profile` | 프로필 생성·수정. 계열은 받지 않음. 사주 결과가 없으면 `FORTUNE_REQUIRED` |
+| `GET /api/match-results` | `{ status: 'ready'｜'fortune_required'｜'profile_required'｜'no_candidates', results: [{ id, rank, profile }] }` — **`id` 가 C 의 `matchResultId`**. 결과는 1~3명이며 실제 인원만 내려간다. `fortune_required` = 생년월일 미저장 → `/fortune`, `profile_required` = 프로필 미등록·비공개 → `/profile` |
+| `GET /api/profile` | `{ profile: 내 프로필｜null, birthInputSaved, lockedTrack: 'humanities'｜'science'｜null }` (v3에서 변경) |
+| `PUT /api/profile` | 프로필 생성·수정. 점수가 없으면 `track` 필수 → 서버가 저장된 생년월일 + 계열로 고정 점수 생성. 이후 계열 변경은 `TRACK_LOCKED`(409). 생년월일 미저장 `FORTUNE_REQUIRED`(409), 계열 누락 `TRACK_REQUIRED`(400), 비밀 키 미설정 `NOT_CONFIGURED`(503) |
 
 프로필 카드 필드: `userId, nickname, gender, university, major, bio, interests, track, photoUrl`(만료 서명 URL).
 
@@ -135,7 +138,8 @@ C 의 `Repository.transaction()` 을 Supabase REST 호출로 이어 붙이면 �
 ## 7. 🔒 공개하지 않는 정보
 | 비공개 | 위치 |
 |---|---|
-| 생년월일, 태어난 시간, 출생지, 양/음력 | `private_birth_data` (본인만) |
+| 생년월일, 양/음력, 윤달, 시간대 | `private_birth_data` (본인만). 태어난 시간은 저장하지 않는다 |
+| 3주 원국·용신·강약 분석 | `fortune_analyses` (서버만) |
 | 매칭 점수, 기본 숫자, 사주 풀이 원문 | `fortune_results` (본인만). 프로필 카드·추천 응답에 포함하지 않는다 |
 | 이메일 | `auth.users` 에만 있다 |
 | 결제 거래 | `payments` (브라우저 접근 없음) |
@@ -146,4 +150,41 @@ C 의 `Repository.transaction()` 을 Supabase REST 호출로 이어 붙이면 �
 3. **거절 후 정책**: 자동 환불 여부. 거절된 상대에게는 재요청을 막는다(unique).
 4. **환불 후 채팅방**: 처리 방침을 정해야 한다.
 5. **차단 후 기록**: 지금은 차단하면 양쪽 모두 요청·방·기록이 보이지 않고, 해제하면 다시 보인다. C 서비스 동작과 같다.
-6. **생년월일·계열 수정**: 점수 재생성 정책.
+6. **생년월일·계열 수정**: v3 기본값은 "첫 프로필 저장 때 점수 고정, 이후 계열 변경 불가, 생년월일을 다시 저장해도 점수 유지". 정정 요청 처리(관리자 재생성 등)는 정해야 한다.
+7. **음력 점수 키**: 음력은 양력으로 바꾸지 않고 `lunar:YYYY-MM-DD`(윤달은 `lunar-leap:`)로 해시한다. 같은 사람이 양력·음력으로 각각 입력하면 점수가 다를 수 있다. 오락용 고정 숫자라 허용했지만, 양력 변환으로 통일하려면 변환 라이브러리 도입을 A 와 정해야 한다.
+
+## 9. A 사주 입력 → B 저장 계약 (2026-11-23, A 확인 필요)
+
+### 시점과 입력
+| 단계 | 누가 | 무엇을 |
+|---|---|---|
+| 1. 사주 결과 확인 | A `POST /api/fortune` 성공 후 | 사용자가 **매칭용 저장 동의**를 했으면 `getMatchingService().recordBirthInput(user.id, input)` 호출. `input` 은 A 의 `fortuneInputSchema` 로 검증된 값에서 `birthDate, calendar, isLeapMonth, timezone` 만 |
+| 2. (선택) 3주 분석 | A `POST /api/fortune/matching-basis` 가 `ready` 일 때 | `recordMatchingAnalysis(user.id, matchingInput)` → `fortune_analyses`. 추천 자격·점수와 무관 |
+| 3. 프로필 첫 저장 | B `PUT /api/profile` `{..., track}` | 저장된 생년월일 + 계열 + `SCORE_HMAC_SECRET` → `fortune_results` (없을 때만 insert, 동시 요청에도 먼저 저장된 값 유지) |
+| 4. 무료 추천 | B `GET /api/match-results` | 기존 그대로 |
+
+- 점수는 HRUM 결과와 관계없다. HRUM 강약 점수·mock 결과를 점수로 쓰지 않는다. HRUM 이 실패해도 생년월일 저장과 점수 생성은 가능하다.
+- 계열(문과·이과)은 A 폼이 아니라 B 프로필 화면에서 받는다. `providerSex` 를 성별·계열로 복사하지 않는다.
+- 출생 시간·성별 옵션·계산 옵션은 저장하지 않는다 (점수에 필요 없음).
+- 동의 버전: `matching_birth_storage_v1` (`BIRTH_STORAGE_CONSENT_VERSION`). A 화면의 "DB에 저장하지 않아요" 문구를 매칭용 저장 동의로 바꿔야 한다. 동의하지 않으면 1단계를 호출하지 않고, 사용자는 추천을 받을 수 없다(`fortune_required`).
+
+### 음력·윤달·출생 시간
+| 입력 | 저장 | 점수 키 |
+|---|---|---|
+| 양력 | `birth_date`(date) | `YYYY-MM-DD` (v1 과 동일) |
+| 음력 | `lunar_date`(원문 text, 1~12월·1~30일) | `lunar:YYYY-MM-DD` |
+| 음력 윤달 | `lunar_date` + `is_leap_month = true` | `lunar-leap:YYYY-MM-DD` |
+| 출생 시간 | 저장 안 함 | 사용 안 함 |
+
+음력 날짜는 양력 date 로 넣지 않는다 (음력 2월 30일 등). 실제 윤달 존재 여부·양력 변환 검증은 B 가 하지 않는다 (A 문서와 같은 원칙).
+
+### A 쪽 연결 예시 (A 담당 파일, 우민님 확인 후 반영)
+```ts
+// src/app/api/fortune/route.ts — 결과가 ready 이고 저장 동의가 있을 때만
+const input = fortuneInputSchema.parse(body);           // 이미 하는 검증
+const result = await calculateFortune(input, getFortuneServiceOptions(user.id));
+if (result.status === 'ready' && body.matchingStorageConsent === 'matching_birth_storage_v1') {
+  await getMatchingService().recordBirthInput(user.id, input);
+}
+```
+`matchingStorageConsent` 필드 이름과 strict 스키마 반영 방법은 A 가 정한다.

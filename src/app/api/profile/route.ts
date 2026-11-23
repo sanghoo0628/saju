@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   return matchingApiHandler(async () => {
     const { user } = await requireVerifiedSchoolUser();
-    return json(await getMatchingService().myProfile(user.id));
+    return json(await getMatchingService().profileState(user.id));
   });
 }
 export async function PUT(request: Request) {

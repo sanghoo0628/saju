@@ -25,12 +25,15 @@ const serverSchema = z.object({
   PAYMENTS_ENABLED: flag,
   MOCK_PAYMENTS_ENABLED: flag,
   MATCHING_STRATEGY: z.enum(['legacy_demo_v1', 'saju_hybrid_v0_1']).optional(),
+  // B legacy score HMAC key. Server-only, separate from SAJU_FINGERPRINT_SECRET.
+  SCORE_HMAC_SECRET: optionalText,
   ACTIVITY_BOOKING_PROVIDER: z.enum(['disabled']).default('disabled'),
 }).superRefine((v, ctx) => {
   const issue = (field: string) => ctx.addIssue({ code: 'custom', path: [field], message: 'Invalid configuration' });
   if (!!v.NEXT_PUBLIC_SUPABASE_URL !== !!v.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) issue('NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
   if (v.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !v.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')) issue('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
   if (v.SAJU_FINGERPRINT_SECRET && v.SAJU_FINGERPRINT_SECRET.length < 32) issue('SAJU_FINGERPRINT_SECRET');
+  if (v.SCORE_HMAC_SECRET && v.SCORE_HMAC_SECRET.length < 32) issue('SCORE_HMAC_SECRET');
   if (v.SAJU_API_BASE_URL && v.SAJU_API_BASE_URL.replace(/\/$/, '') !== 'https://api.hrum.ai/api/v1/partners/v1') issue('SAJU_API_BASE_URL');
   if (v.SAJU_PROVIDER === 'hrum' && v.SAJU_API_KEY && !v.SAJU_FINGERPRINT_SECRET) issue('SAJU_FINGERPRINT_SECRET');
   if (v.SAJU_API_KEY && /[\r\n\s]/.test(v.SAJU_API_KEY)) issue('SAJU_API_KEY');
@@ -49,6 +52,7 @@ const serverSchema = z.object({
     if (!domains.length) issue('ALLOWED_EMAIL_DOMAINS');
     if (v.SAJU_PROVIDER === 'mock') issue('SAJU_PROVIDER');
     if (!v.MATCHING_STRATEGY) issue('MATCHING_STRATEGY');
+    if (v.MATCHING_STRATEGY === 'legacy_demo_v1' && !v.SCORE_HMAC_SECRET) issue('SCORE_HMAC_SECRET');
   }
 });
 
