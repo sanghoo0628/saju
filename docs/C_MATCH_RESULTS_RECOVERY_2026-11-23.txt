@@ -15,6 +15,13 @@ B 검사 144개 통과, postgres-wire 6개는 로컬 listen EPERM으로 실행�
 포트가 필요한 검사와 native PostgreSQL 검사는 GitHub CI에서 확인한다.
 이전 학교 메일 발송 실패는 별도 SMTP 설정 문제이며 이 변경으로 해결하지 않는다.
 
+최종 CI: ea2e44bacfabe600616d9a7faf0e6424aa5ed838
+https://github.com/sanghoo0628/saju/actions/runs/45159681997
+App, API and UI / Native PostgreSQL concurrency 모두 success.
+기본 473개(B150+C167+A118+UI24+도구14), native12 = 총485개 통과.
+HTTP20, lint, typecheck, Next 및 Vite build 통과.
+로컬에서 포트 제한으로 미실행한 B 6개도 CI의 B150개에 포함되어 통과했다.
+
 공유 DB, 실제 메일 발송, 실제 결제, main 변경 없음.
 현재 4300 서버에는 직전 c86b500 빌드가 실행 중이다. 기존 exec 세션 종료가
 자동 승인 정책에 거부되어 유지했다. 새 코드의 빌드는 격리된 복사본에서 검증했다.

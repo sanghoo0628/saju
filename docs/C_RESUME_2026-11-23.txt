@@ -3,6 +3,8 @@
 - 실제 학교 이메일 OTP는 Supabase over_email_send_rate_limit(429), Custom SMTP off 확인.
 - A가 B에게 SMTP/한도/숫자 토큰 템플릿 설정 요청. 완료 답변 대기 중.
 - 인증 오류 안내 c86b500 푸시, 무료 추천 GET의 15초 제한·취소·재시도 안내 연결.
+- 추천 복구 코드 ea2e44b, 최종 CI485개+HTTP20 및 lint/typecheck/Next/Vite build 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45159681997
 - 실제 메일 수신/실사용자 로그인은 아직 미검증. 현재 4300은 c86b500 빌드 유지.
 - 공유 DB/main 변경 없음. 아래는 이전 기록이다.
 
