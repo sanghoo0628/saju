@@ -1,3 +1,11 @@
+최신: 메시지 시각 정밀도 보존 검증 (2026-11-23)
+- C_TIMESTAMP_PRECISION_2026-11-23.txt에 수정 전 실패, 정밀도 보존, 105개 SQL→HTTP→timeline 검증을 정리했다.
+- 코드 35852bf, https://github.com/sanghoo0628/saju/actions/runs/45135260851
+- 기본 402개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 로컬 작업 위치는 iCloud 밖 /private/tmp/saju-c-20261123이다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
 최신: 이전 대화 요청 조회 검증 (2026-11-23)
 - C_REQUEST_HISTORY_2026-11-23.txt에 화면 변경과 브라우저 시나리오를 정리했다.
 - 코드 f7e590e, https://github.com/sanghoo0628/saju/actions/runs/45133936967

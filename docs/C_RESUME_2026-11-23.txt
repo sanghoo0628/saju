@@ -3,7 +3,8 @@
 - iCloud dataless 때문에 /private/tmp/saju-c-20261123에서 C 브랜치 작업을 이어갔다.
 - 서버 ISO 시각과 화면 정렬에서 마이크로초를 보존해 연속 메시지 뒤집힘을 수정했다.
 - 기본 402개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
-- native 12개와 앱 CI 최종 결과는 위 문서에 기록한다.
+- native 12개와 앱 CI 모두 성공했다(코드 35852bf).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45135260851
 - 기존 Documents 프로젝트는 덮어쓰지 않았다. 아래는 이전 기록이다.
 
 최신 C 작업: 이전 대화 요청 조회 (2026-11-23)
