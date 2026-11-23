@@ -1,3 +1,10 @@
+최신: 메시지 재전송 중복 방지 검증 (2026-11-23)
+- C_MESSAGE_IDEMPOTENCY_2026-11-23.txt에 변경 및 장애 재현 결과를 정리했다.
+- 코드 8cb318e, https://github.com/sanghoo0628/saju/actions/runs/45125662054
+- 기본 376개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
 후속 실제 연결·OTP 수정 검증 (2026-11-23)
 - C_SUPABASE_LIVE_QA_2026-11-23.txt를 최신 기록으로 확인한다.
 - 코드 6da8048의 CI https://github.com/sanghoo0628/saju/actions/runs/45121995036 에서

@@ -55,7 +55,7 @@ pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 12개
 기본 검사와 빌드는 실제 Supabase 계정이나 결제 없이 실행합니다.
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
-기존 네이티브 PostgreSQL 검사 10개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45118851935)에서 모두 통과했습니다.
+네이티브 PostgreSQL 검사 12개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45125662054)에서 모두 통과했습니다.
 로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 376개에 포함되지 않습니다.
 
 C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
