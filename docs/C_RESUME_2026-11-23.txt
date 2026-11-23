@@ -3,6 +3,7 @@
 - README 협업 규칙, 안전한 진단 로그, Supabase CA 필수 검사, 거절 후 주문 안내, CI 범위 반영.
 - 실제 dev CA 없는 연결 실패/CA 포함 READ ONLY 역할 전환 성공 확인. 공유 DB 쓰기 없음.
 - main 수정/PR 병합 없이 C 브랜치에서만 진행. 아래는 이전 기록.
+- 팀의 최신 main 82f466c를 C로 병합해 A 로그인/동의 및 README 팀원 표·규칙을 보존했다.
 
 최신: 추천 카드 프로필 사진 연결 (2026-11-23)
 - C_PROFILE_PHOTO_2026-11-23.txt 확인. B photoUrl을 C 카드에 표시하도록 수정.
