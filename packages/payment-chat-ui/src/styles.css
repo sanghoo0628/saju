@@ -1445,6 +1445,18 @@ button svg {
   min-height: 0;
   overscroll-behavior: contain;
 }
+.message-scroll:focus-visible {
+  outline: 2px solid var(--wine);
+  outline-offset: -3px;
+}
+.latest-message-note {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+}
+.latest-message-note .secondary {
+  font-size: 12px;
+}
 .conversation-start {
   text-align: center;
   padding: 18px 0 34px;

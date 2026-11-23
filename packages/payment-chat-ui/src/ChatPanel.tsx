@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   ChatMessage,
   ChatRequestResponse,
@@ -63,6 +63,9 @@ function Conversation({
   const sendController = useRef<AbortController | null>(null);
   const active = useRef(false);
   const scroll = useRef<HTMLDivElement>(null);
+  const followingLatest = useRef(true);
+  const latestMessageId = useRef<string | undefined>(undefined);
+  const [showLatest, setShowLatest] = useState(false);
   const roomId = room.id;
   const [memberA, memberB] = room.members;
   const roomCreatedAt = room.createdAt;
@@ -88,6 +91,14 @@ function Conversation({
     });
     sessionRef.current = session;
     const stop = session.subscribe((state) => {
+      const latestId = state.messages.at(-1)?.id;
+      if (!latestId) {
+        followingLatest.current = true;
+        setShowLatest(false);
+      } else if (latestId !== latestMessageId.current && !followingLatest.current) {
+        setShowLatest(true);
+      }
+      latestMessageId.current = latestId;
       setMessages(state.messages);
       setLoading(state.loading);
       setHistoryError(state.historyError);
@@ -98,6 +109,8 @@ function Conversation({
       const delivered = pending && state.messages.find(message => message.id === pending.clientMessageId);
       const confirmed = delivered && tracker.confirm(delivered);
       if (confirmed) {
+        followingLatest.current = true;
+        setShowLatest(false);
         setPendingSend(null);
         setSendError('');
         setDraft(value => value.trim() === confirmed.body ? '' : value);
@@ -130,9 +143,19 @@ function Conversation({
     currentUserId,
     messageSource,
   ]);
-  useEffect(() => {
-    if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
-  }, [messages.length]);
+  useLayoutEffect(() => {
+    // Keep history readers in place. Follow new content only while already at the end.
+    if (followingLatest.current && scroll.current)
+      scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [messages]);
+  function jumpToLatest() {
+    followingLatest.current = true;
+    setShowLatest(false);
+    if (scroll.current) {
+      scroll.current.scrollTop = scroll.current.scrollHeight;
+      scroll.current.focus({ preventScroll: true });
+    }
+  }
   async function send(retry?: MessageSendAttempt) {
     const body = retry?.body ?? draft.trim();
     if (!body || sendingRef.current || accessError || loading || historyError)
@@ -168,6 +191,8 @@ function Conversation({
       if (!tracker.matches(attempt, result))
         throw new PaymentChatClientError('INVALID_RESPONSE', '전송 결과를 확인할 수 없어요.', 502);
       tracker.confirm(result);
+      followingLatest.current = true;
+      setShowLatest(false);
       session.receive(result);
       setPendingSend(null);
       setDraft(value => value.trim() === attempt.body ? '' : value);
@@ -218,6 +243,12 @@ function Conversation({
         aria-busy={loading}
         role="log"
         aria-live="polite"
+        tabIndex={0}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          followingLatest.current = element.scrollHeight - element.clientHeight - element.scrollTop <= 64;
+          if (followingLatest.current) setShowLatest(false);
+        }}
       >
         <div className="conversation-start">
           <span>
@@ -257,6 +288,13 @@ function Conversation({
           </div>
         ))}
       </div>
+      {showLatest && !accessError ? (
+        <div className="latest-message-note">
+          <button type="button" className="secondary" onClick={jumpToLatest}>
+            최신 메시지 보기 ↓
+          </button>
+        </div>
+      ) : null}
       {accessError ? (
         <p className="chat-error" role="alert">
           {accessError}

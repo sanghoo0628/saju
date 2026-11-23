@@ -69,6 +69,8 @@ C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이
 
 [요청 지연 시 대기 해제와 재확인](docs/C_REQUEST_TIMEOUT_2026-11-23.txt)에 최신 변경을 정리했습니다.
 
+[채팅 읽기 위치 유지와 최신 메시지 이동](docs/C_CHAT_READING_POSITION_2026-11-23.txt)에 최신 화면 변경을 정리했습니다.
+
 ## 독립 C 화면 데모
 
 ```bash
