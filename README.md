@@ -15,6 +15,35 @@ B의 `/profile` 등록·수정 화면과 새 프로필 상태 API를 통합했�
 팀 담당은 A(공통 앱·학교 인증·사주), B(프로필·매칭·DB·RLS), C(결제·요청·채팅)입니다.
 main과 팀원 브랜치를 수정하지 않고 `codex/c-payment-chat`에서 작업합니다.
 
+## 🤝 협업 규칙
+
+> 팀이 처음 정한 규칙입니다(`31d1941`). C 브랜치 통합 때 README가 바뀌면서 빠졌던 내용을 그대로 되살렸습니다.
+
+### 🌿 브랜치 규칙
+
+- `main` : 항상 실행되는 코드. **직접 push 금지**
+- `feature/기능이름` : 기능 개발 (예: `feature/saju-calc`, `feature/tarot-ui`)
+- `fix/버그이름` : 버그 수정
+
+**작업 순서**
+1. `main` 최신화: `git checkout main && git pull`
+2. 브랜치 생성: `git checkout -b feature/기능이름`
+3. 작업 후 커밋 & push: `git push origin feature/기능이름`
+4. GitHub에서 Pull Request 생성 → 팀원 1명 이상 확인 → merge
+
+### ✍️ 커밋 메시지 규칙
+
+| 태그 | 의미 | 예시 |
+|---|---|---|
+| `feat:` | 새 기능 | `feat: 사주 입력 화면 추가` |
+| `fix:` | 버그 수정 | `fix: 윤달 계산 오류 수정` |
+| `docs:` | 문서 수정 | `docs: README 실행 방법 추가` |
+| `style:` | 코드 포맷, 세미콜론 등 (동작 변화 없음) | `style: 들여쓰기 정리` |
+| `refactor:` | 리팩토링 | `refactor: 오행 계산 함수 분리` |
+| `chore:` | 설정, 패키지 등 | `chore: eslint 설정 추가` |
+
+> ⚠️ API 키 값은 레포에 올리지 말고 팀 채팅으로 따로 공유합니다.
+
 ## 설치와 실행
 
 Node **24.22.1 이상 25 미만**, pnpm **11.25.0**을 사용합니다. `.nvmrc`와 `.node-version`도 같습니다.
