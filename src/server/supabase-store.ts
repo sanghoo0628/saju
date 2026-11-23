@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Gender } from "../contracts/matching";
-import type { Track } from "../lib/score";
+import type { BirthInput, Track } from "../lib/score";
 import type { MatchingStore, ProfileRow, StoredMatchResult } from "./matching-service";
 
 export const PROFILE_PHOTO_BUCKET = "profile-photos";
@@ -49,7 +49,7 @@ function check<T>(res: { data: T; error: { message: string } | null }, what: str
 }
 
 export function createSupabaseMatchingStore(admin: SupabaseClient): MatchingStore {
-  return {
+  const store: MatchingStore = {
     async profile(userId) {
       const data = check(
         await admin.from("profiles").select(PROFILE_COLUMNS).eq("id", userId).maybeSingle<ProfileDbRow>(),
@@ -64,6 +64,84 @@ export function createSupabaseMatchingStore(admin: SupabaseClient): MatchingStor
         "점수 조회",
       );
       return data?.score;
+    },
+
+    async birthInput(userId) {
+      const data = check(
+        await admin
+          .from("private_birth_data")
+          .select("birth_date, lunar_date, calendar_type, is_leap_month")
+          .eq("user_id", userId)
+          .maybeSingle<{ birth_date: string | null; lunar_date: string | null; calendar_type: "solar" | "lunar"; is_leap_month: boolean }>(),
+        "생년월일 조회",
+      );
+      if (!data) return undefined;
+      const date = data.calendar_type === "solar" ? data.birth_date : data.lunar_date;
+      if (!date) return undefined;
+      return { calendar: data.calendar_type, date, isLeapMonth: data.is_leap_month } satisfies BirthInput;
+    },
+
+    async saveBirthInput(row) {
+      const now = new Date().toISOString();
+      check(
+        await admin.from("private_birth_data").upsert(
+          {
+            user_id: row.userId,
+            calendar_type: row.calendar,
+            birth_date: row.calendar === "solar" ? row.date : null,
+            lunar_date: row.calendar === "lunar" ? row.date : null,
+            is_leap_month: row.isLeapMonth,
+            birth_time: null,
+            timezone: row.timezone,
+            consent_version: row.consentVersion,
+            consented_at: now,
+          },
+          { onConflict: "user_id" },
+        ),
+        "생년월일 저장",
+      );
+    },
+
+    async insertScoreIfAbsent(userId, s) {
+      check(
+        await admin.from("fortune_results").upsert(
+          {
+            user_id: userId,
+            base_number: s.baseNumber,
+            score: s.score,
+            score_version: s.scoreVersion,
+            score_input: s.scoreInput,
+          },
+          { onConflict: "user_id", ignoreDuplicates: true },
+        ),
+        "점수 저장",
+      );
+      const stored = await store.fortuneScore(userId);
+      if (stored === undefined) throw new Error("점수 저장 실패: 결과 없음");
+      return stored;
+    },
+
+    async saveFortuneAnalysis(row) {
+      check(
+        await admin.from("fortune_analyses").upsert(
+          {
+            user_id: row.userId,
+            schema_version: row.schemaVersion,
+            chart_basis: row.chartBasis,
+            provider: row.provider,
+            adapter_version: row.adapterVersion,
+            fortune_schema_version: row.fortuneSchemaVersion,
+            input_fingerprint: row.inputFingerprint,
+            comparison_key: row.comparisonKey,
+            calculated_at: row.calculatedAt,
+            chart: row.chart,
+            calculation: row.calculation,
+            analysis: row.analysis,
+          },
+          { onConflict: "user_id" },
+        ),
+        "사주 분석 저장",
+      );
     },
 
     async upsertProfile(row) {
@@ -122,4 +200,5 @@ export function createSupabaseMatchingStore(admin: SupabaseClient): MatchingStor
       return out;
     },
   };
+  return store;
 }

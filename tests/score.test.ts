@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   computeBaseNumber,
   computeScore,
+  computeScoreForBirthInput,
+  normalizeLunarDate,
+  scoreKey,
   InvalidBirthDateError,
   normalizeBirthDate,
   SCORE_VERSION,
@@ -84,5 +87,31 @@ describe("toScore / computeScore", () => {
     expect(h.score).toBe(-s.score);
     expect(h.baseNumber).toBe(s.baseNumber);
     expect(h.scoreVersion).toBe(SCORE_VERSION);
+  });
+});
+
+describe("음력 입력과 점수 키 (2026-11-23 A 저장 계약)", () => {
+  it("양력 입력은 기존 v1 과 같은 점수", () => {
+    const solar = computeScoreForBirthInput({ calendar: "solar", date: "2003-05-17", isLeapMonth: false }, "humanities", "test-secret");
+    expect(solar).toEqual({ ...computeScore("2003-05-17", "humanities", "test-secret"), scoreInput: "solar" });
+  });
+
+  it("음력·윤달은 다른 키로 해시하고 입력 종류를 기록한다", () => {
+    expect(scoreKey({ calendar: "lunar", date: "2001-02-30", isLeapMonth: false })).toEqual({ key: "lunar:2001-02-30", scoreInput: "lunar" });
+    expect(scoreKey({ calendar: "lunar", date: "2001-02-30", isLeapMonth: true })).toEqual({ key: "lunar-leap:2001-02-30", scoreInput: "lunar_leap" });
+    const a = computeScoreForBirthInput({ calendar: "lunar", date: "2003-05-17", isLeapMonth: false }, "science", "test-secret");
+    const b = computeScoreForBirthInput({ calendar: "lunar", date: "2003-05-17", isLeapMonth: true }, "science", "test-secret");
+    expect(a.scoreInput).toBe("lunar");
+    expect(b.scoreInput).toBe("lunar_leap");
+    expect(a.score).toBeLessThan(0);
+    expect(a.baseNumber).not.toBe(b.baseNumber);
+  });
+
+  it.each(["2001-13-01", "2001-00-10", "2001-02-31", "1899-01-01", "2001-2-3", "abcd-ef-gh"])("음력 거부: %s", (date) => {
+    expect(() => normalizeLunarDate(date, new Date("2026-11-23T00:00:00Z"))).toThrow(InvalidBirthDateError);
+  });
+
+  it("양력 윤달은 거부", () => {
+    expect(() => scoreKey({ calendar: "solar", date: "2003-05-17", isLeapMonth: true })).toThrow(InvalidBirthDateError);
   });
 });
