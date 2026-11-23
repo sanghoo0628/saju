@@ -30,7 +30,12 @@ TLS 검증을 유지했으며 공유 DB에 쓰지 않았다.
 회귀
 기본 438개(B/DB 150 + C 167 + A 97 + UI 24), ESLint, 타입 검사,
 Next/Vite 빌드, 로컬 HTTP 20개 모두 통과했다.
-native PostgreSQL 12개와 최종 앱 CI는 푸시 후 확인해 기록한다.
+검증 코드 커밋: 6feddd6cf69b22b18463c289c41e0d71f6f4b9cb
+GitHub Actions: https://github.com/sanghoo0628/saju/actions/runs/45152189892
+전체 conclusion=success. App, API and UI / Native PostgreSQL concurrency 모두 성공.
+기본 438개 + native PostgreSQL 12개 = 자동 테스트 450개 통과. HTTP 20개도 통과.
+ESLint, 타입 검사, Next/Vite 빌드 모두 통과했다.
+결과를 기록하는 후속 문서 커밋은 CI paths-ignore에 따라 재실행하지 않는다.
 기존 7개 SQL, DB/RLS, 앱 API, 결제/채팅 동작, 환경 변수 파일은 변경하지 않았다.
 
 재개

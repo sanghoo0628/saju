@@ -1,3 +1,11 @@
+최신: B CLI·테스트 후속 커밋 통합 검증 (2026-11-23)
+- C_B_FOLLOWUPS_2026-11-23.txt에 rebase 확인, 후속 통합, 로컬 주소/seed 수정 기록.
+- 코드 6feddd6, https://github.com/sanghoo0628/saju/actions/runs/45152189892
+- 기본 438개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- TOML 정적 점검과 개발 DB 메이저 버전 17 읽기 조회 완료. CLI 스택 구동/원격 반영은 실행하지 않았다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
 최신: B 프로필 통합·후속 DB 호환성 검증 (2026-11-23)
 - C_B_PROFILE_INTEGRATION_2026-11-23.txt 및 C_DEV_DB_READONLY_2026-11-23.json 확인.
 - B d4d8eea 통합, 검증 코드 68d13f4, https://github.com/sanghoo0628/saju/actions/runs/45150958500
