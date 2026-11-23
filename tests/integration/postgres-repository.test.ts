@@ -278,3 +278,16 @@ it('different payloads racing for the same message UUID cannot overwrite each ot
   expect(rows).toHaveLength(1);
   expect(['first payload','second payload']).toContain(rows[0].body);
 });
+
+it('concurrent replay after refund and repurchase rebinds one request to the new paid order', async () => {
+  const old = await paid();
+  const request = await service.requestChat(actor, old);
+  await db.pool.query("update public.orders set status='refunded' where id=$1", [old]);
+  const replacement = await paid();
+  const rebound = await Promise.all(Array.from({length:4},()=>service.requestChat(actor,replacement)));
+  expect(rebound.every(r=>r.id===request.id&&r.orderId===replacement)).toBe(true);
+  const stored=await db.pool.query('select order_id from public.chat_requests where id=$1',[request.id]);
+  expect(stored.rows[0].order_id).toBe(replacement);
+  expect(await count('chat_requests')).toBe(1);
+  expect(await service.acceptChat({userId:A},request.id)).toHaveProperty('conversationId');
+});

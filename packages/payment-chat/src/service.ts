@@ -55,6 +55,8 @@ export function createService(deps: {
         const room = await tx.conversationForPair(userId, result.targetId);
         if (room) return { kind: "chat_available", conversationId: room.id };
         const existing = await tx.activeOrderForPair(userId, result.targetId);
+        const request = await tx.requestForPair(userId, result.targetId);
+        if (request?.status === "rejected") invalid("상대가 거절한 대화 요청입니다. 이전 요청 결과를 확인해주세요.");
         if (existing?.status === "fulfilled") return { kind: "chat_available", orderId: existing.id };
         if (existing?.status === "pending") return {
           kind: "payment_required", orderId: existing.id, amountKrw: existing.amountKrw,
@@ -117,7 +119,15 @@ export function createService(deps: {
         await availablePair(tx, userId, order.targetId);
         if (!(await tx.profileAvailable(order.targetId))) forbidden();
         const existing = await tx.requestForPair(userId, order.targetId);
-        if (existing) return existing; // 거절 후 반복 요청도 생성하지 않는다.
+        if (existing) {
+          // Preserve the recipient's decision. Only an unanswered request can use a new paid order.
+          if (existing.status === "pending" && existing.orderId !== orderId) {
+            const rebound = { ...existing, orderId };
+            await tx.saveRequest(rebound);
+            return rebound;
+          }
+          return existing; // 거절 후 반복 요청도 생성하지 않는다.
+        }
         const request = { id: id(), from: userId, to: order.targetId, orderId, status: "pending" as const, createdAt: now() };
         await tx.saveRequest(request);
         return request;

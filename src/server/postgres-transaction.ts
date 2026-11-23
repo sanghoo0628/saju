@@ -182,7 +182,8 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
     async saveRequest(value) {
       await q.query(
         `insert into public.chat_requests(id,requester_id,recipient_id,order_id,status,created_at)
-      values($1,$2,$3,$4,$5,$6) on conflict(id) do update set status=excluded.status,responded_at=now()`,
+      values($1,$2,$3,$4,$5,$6) on conflict(id) do update set order_id=excluded.order_id,status=excluded.status,
+      responded_at=case when excluded.status='pending' then null else now() end`,
         [
           value.id,
           value.from,

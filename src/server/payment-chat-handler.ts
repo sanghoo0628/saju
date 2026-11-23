@@ -8,15 +8,19 @@ export function createPaymentChatHandler(options: {
   service: PaymentChatService;
   appOrigin: string;
   requireUserId: () => Promise<string>;
+  onUnexpectedError?: (error: unknown) => void;
 }) {
   return createHttpApi({
     service: options.service,
     appOrigin: options.appOrigin,
+    onUnexpectedError: options.onUnexpectedError,
     getCurrentUserId: async () => {
       try { return await options.requireUserId(); }
       catch (error) {
-        if (error instanceof ConfigurationError || (error instanceof ApiError && error.status === 503))
+        if (error instanceof ConfigurationError || (error instanceof ApiError && error.status === 503)) {
+          try { options.onUnexpectedError?.(error); } catch { /* Diagnostics cannot affect availability responses. */ }
           throw new ServiceError('PROVIDER_UNAVAILABLE', '로그인 연결 설정을 준비하고 있어요.');
+        }
         if (error instanceof ApiError && error.status === 401) return null;
         if (error instanceof ApiError && error.status === 403)
           throw new ServiceError('FORBIDDEN', '인증된 학교 계정으로 이용해주세요.');

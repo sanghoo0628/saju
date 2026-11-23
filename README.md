@@ -3,13 +3,37 @@
 무료 추천 프로필 최대 3명 → 상대 선택 → 상대당 500원 → 대화 요청 → 상대 수락(무료) → 채팅.
 사주와 매칭은 오락용이며, 결제가 상대의 수락이나 답장을 보장하지 않습니다.
 
+## 🌿 브랜치 규칙
+
+- `main` : 항상 실행되는 코드. **직접 push 금지**
+- `feature/기능이름` : 기능 개발 (예: `feature/saju-calc`, `feature/tarot-ui`)
+- `fix/버그이름` : 버그 수정
+
+**작업 순서**
+1. `main` 최신화: `git checkout main && git pull`
+2. 브랜치 생성: `git checkout -b feature/기능이름`
+3. 작업 후 커밋 & push: `git push origin feature/기능이름`
+4. GitHub에서 Pull Request 생성 → 팀원 1명 이상 확인 → merge
+
+## ✍️ 커밋 메시지 규칙
+
+| 태그 | 의미 | 예시 |
+|---|---|---|
+| `feat:` | 새 기능 | `feat: 사주 입력 화면 추가` |
+| `fix:` | 버그 수정 | `fix: 윤달 계산 오류 수정` |
+| `docs:` | 문서 수정 | `docs: README 실행 방법 추가` |
+| `style:` | 코드 포맷, 세미콜론 등 (동작 변화 없음) | `style: 들여쓰기 정리` |
+| `refactor:` | 리팩토링 | `refactor: 오행 계산 함수 분리` |
+| `chore:` | 설정, 패키지 등 | `chore: eslint 설정 추가` |
+
+
 ## 현재 C 브랜치 상태 (2026-11-23)
 
 A의 Next.js·인증·사주 코드(dd336a2)를 기존 B/C 코드에 통합했습니다.
 인증된 학교 계정으로 `/matches`, `/requests`, `/chat`, `/orders/return`을 사용하도록 화면과 API를 연결했습니다.
 기존 결제 권한·채팅방은 추가 결제 없이 사용하며, 새로운 결제와 웹훅 확정은 Groble 공식 연동 전까지 503으로 거부합니다.
-실제 Supabase 임시 계정 3개로 OTP·세션·요청·수락·송수신·Realtime·RLS·차단·로그아웃 9개 시나리오를 검증하고 데이터를 정리했습니다. 실제 학교 이메일 수신과 사람의 입력 UI는 별도 확인이 필요합니다.
-A의 선택 저장 동의와 B recordBirthInput/recordMatchingAnalysis 호출 연결이 C에 합류했습니다(PR #3). 실제 학교 계정으로 저장→프로필→추천을 확인하는 검증은 남아 있습니다.
+실제 Supabase 임시 계정 3개로 OTP·세션·요청·수락·송수신·Realtime·RLS·차단·로그아웃 9개 시나리오를 검증하고 데이터를 정리했습니다. 실제 학교 이메일 수신·로그인은 사용자 확인을 마쳤습니다.
+A의 선택 저장 동의와 B recordBirthInput/recordMatchingAnalysis 호출 연결이 C에 합류했습니다(PR #3). 실제 학교 계정의 저장→프로필→무료 추천은 사용자 확인을 마쳤으며 Safari 추천 화면도 확인했습니다.
 B의 `/profile` 등록·수정 화면과 새 프로필 상태 API를 통합했습니다. 저장된 생년월일이 있으면 첫 프로필 저장 때 고정 점수를 만들고 무료 추천으로 이어집니다.
 
 팀 담당은 A(공통 앱·학교 인증·사주), B(프로필·매칭·DB·RLS), C(결제·요청·채팅)입니다.
@@ -37,28 +61,28 @@ pnpm dev
 - 사주 공급자: `.env.example`의 `SAJU_PROVIDER`, HRUM 관련 설정. 기존 `SAJU_USE_MOCK`은 A에서 사용하지 않습니다.
 - Groble: 변수 이름만 예약되어 있습니다. URL/키를 넣거나 flag를 바꾸는 것으로 실제 결제를 활성화할 수 없습니다.
 
-CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS 인증서 검증을 유지하며, CA 파일은 배포 환경에도 별도로 준비해야 합니다.
+Supabase DB 연결에는 DATABASE_SSL_CA_PATH가 필수입니다. CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS 인증서 검증을 유지하며, CA 파일은 배포 환경에도 별도로 준비해야 합니다.
 인증된 사용자 UUID는 A 서버 인증으로 확인하며, 브라우저 본문의 구매자·작성자 ID를 신뢰하지 않습니다.
 
 ## 검사
 
 ```bash
-pnpm test        # B/DB 150, C 167, A 107, UI 24, 통합 도구 14 = 462
+pnpm test        # B/DB, C, A, UI, 통합 도구 검사
 pnpm lint
 pnpm typecheck
 pnpm build
 pnpm demo:build
 pnpm test:http:local # 미설정 테스트 환경에서 빌드한 앱을 시작·검사·종료
-pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 12개
+pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 13개
 ```
 
 기본 검사와 빌드는 실제 Supabase 계정이나 결제 없이 실행합니다.
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
-네이티브 PostgreSQL 검사 12개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45156222365)에서 모두 통과했습니다.
-로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 462개에 포함되지 않습니다.
+네이티브 PostgreSQL 검사는 결제·요청 동시성과 환불 후 재구매를 확인합니다. 최신 결과는 C 재개 기록과 CI를 참고하세요.
+로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 검사에 포함되지 않습니다.
 
-C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
+C·feature/**·fix/** 브랜치 push와 main·C 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
 문서만 바뀐 커밋은 제외합니다. 실제 Supabase/사주/결제 키는 CI에 필요하지 않습니다.
 [자동 검증 결과와 재실행 방법](docs/C_CI_VALIDATION_2026-11-23.txt)을 참고하세요.
 
