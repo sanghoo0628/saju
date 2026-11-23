@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isAllowedSchoolEmail, readVerifiedUser, getSchoolVerification } from './identity';
 import { apiHandler, ApiError, assertSameOrigin, json, readJson } from '@/lib/http/api';
 import { emailOtpTokenSchema } from './email-otp';
-import { otpSendError } from './otp-send-error';
+import { otpSendError, otpVerifyError } from './otp-send-error';
 
 const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const loginSchema = z.object({ email: emailSchema }).strict();
@@ -27,7 +27,7 @@ export function handleOtp(request: Request, mode: 'send' | 'verify') {
     } else {
       if (input.token === undefined) throw new ApiError(400, 'INVALID_OTP', '인증 코드가 올바르지 않거나 만료되었습니다.');
       const { error } = await supabase.auth.verifyOtp({ email: input.email, token: input.token, type: 'email' });
-      if (error) throw new ApiError(400, 'INVALID_OTP', '인증 코드가 올바르지 않거나 만료되었습니다.');
+      if (error) throw otpVerifyError(error);
       const user = await readVerifiedUser(supabase.auth);
       if (!user || getSchoolVerification(user, env.ALLOWED_EMAIL_DOMAINS).status !== 'verified') {
         await supabase.auth.signOut({ scope: 'local' });

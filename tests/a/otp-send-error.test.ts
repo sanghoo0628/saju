@@ -38,3 +38,19 @@ for (const input of [{ status: 500, code: 'unexpected_failure' }, {}]) {
     assert.doesNotMatch(error.message, /unexpected_failure/);
   });
 }
+
+test('verification rate limits are not reported as a wrong code', async () => {
+  const { otpVerifyError } = await import('../../src/lib/auth/otp-send-error');
+  const limited = otpVerifyError({ status: 429, code: 'over_request_rate_limit' });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.code, 'RATE_LIMITED');
+  assert.doesNotMatch(limited.message, /올바르지 않거나/);
+  const down = otpVerifyError({ status: 502 });
+  assert.equal(down.status, 503);
+  assert.equal(down.code, 'AUTH_UNAVAILABLE');
+  for (const input of [{ status: 403, code: 'otp_expired' }, { status: 400 }, {}]) {
+    const wrong = otpVerifyError(input);
+    assert.equal(wrong.status, 400);
+    assert.equal(wrong.code, 'INVALID_OTP');
+  }
+});

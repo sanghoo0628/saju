@@ -13,3 +13,14 @@ export function otpSendError(error: { status?: number; code?: string }): ApiErro
   }
   return new ApiError(503, 'AUTH_UNAVAILABLE', '인증 메일을 요청하지 못했습니다. 잠시 후 다시 시도해 주세요.');
 }
+
+/** Code verification: a rate limit is not a wrong code, and network/server failures are not either. */
+export function otpVerifyError(error: { status?: number; code?: string }): ApiError {
+  if (error.status === 429) {
+    return new ApiError(429, 'RATE_LIMITED', '인증 시도가 너무 많습니다. 잠시 기다린 뒤 받은 인증번호로 다시 시도해 주세요.');
+  }
+  if (error.status !== undefined && error.status >= 500) {
+    return new ApiError(503, 'AUTH_UNAVAILABLE', '인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  return new ApiError(400, 'INVALID_OTP', '인증 코드가 올바르지 않거나 만료되었습니다.');
+}
