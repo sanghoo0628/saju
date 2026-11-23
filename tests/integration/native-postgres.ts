@@ -61,8 +61,7 @@ export async function startNativePostgres() {
   // their sockets emit end. Stop the server only after those clients finish.
   const connections = new Set<Promise<void>>();
   pool.on("connect", (client) => {
-    let closed: Promise<void>;
-    closed = new Promise<void>((resolve) => {
+    const closed = new Promise<void>((resolve) => {
       client.once("end", () => {
         connections.delete(closed);
         resolve();
