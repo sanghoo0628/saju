@@ -1,0 +1,20 @@
+학교 이메일 로그인 발송 실패 진단 (2026-11-23)
+
+실제 Supabase Auth 로그에서 19:36:37 KST 요청의 HTTP 429 및
+over_email_send_rate_limit을 확인했다. Authentication → Emails → SMTP Settings에서
+Custom SMTP가 꺼져 있음도 확인했다. 프로젝트 설정이나 공유 DB는 변경하지 않았다.
+사용자 이메일, 인증 코드, 키, 원문 로그는 이 문서에 저장하지 않는다.
+
+사용자가 전달한 A→B 요청: Custom SMTP 연결, 이메일 발송 한도 조정,
+숫자 코드 앱에 맞는 {{ .Token }} 메일 템플릿 확인. B의 완료 답변 대기 중이다.
+반복 발송 요청은 하지 않았다. 기본 메일 서버의 제약은 공식 문서 참고:
+https://supabase.com/docs/guides/auth/auth-smtp
+
+C 변경: 알려진 발송 한도 초과는 반복 요청 중단과 운영자 설정 대기를 안내하고,
+발송 대상 제한은 운영자에게 메일 설정 확인을 요청한다. 그 외 429는 일반 요청 제한으로
+안내한다. HTTP 상태와 기존 API 코드 RATE_LIMITED/AUTH_UNAVAILABLE은 유지한다.
+공급자 원문 메시지를 노출하거나 이메일 확인 절차를 변경하지 않았다.
+
+검증: test:a 112개(새 회귀 테스트 5개 포함), lint, typecheck 통과.
+실제 메일 수신·실사용자 로그인·전체 온보딩은 미검증이며 SMTP 준비 후 재개한다.
+기존 임시 계정 기반 채팅 QA 통과와 실제 이메일 발송 검증은 별개다.
