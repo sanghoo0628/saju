@@ -4,10 +4,11 @@ import { getServerEnv } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAllowedSchoolEmail, readVerifiedUser, getSchoolVerification } from './identity';
 import { apiHandler, ApiError, assertSameOrigin, json, readJson } from '@/lib/http/api';
+import { emailOtpTokenSchema } from './email-otp';
 
 const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const loginSchema = z.object({ email: emailSchema }).strict();
-const verifySchema = z.object({ email: emailSchema, token: z.string().regex(/^\d{6}$/) }).strict();
+const verifySchema = z.object({ email: emailSchema, token: emailOtpTokenSchema }).strict();
 
 export function handleOtp(request: Request, mode: 'send' | 'verify') {
   return apiHandler(async () => {

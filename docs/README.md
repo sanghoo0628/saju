@@ -19,3 +19,5 @@
 C 최신 재개 기록: C_RESUME_2026-11-23.txt
 
 - [`C_CI_VALIDATION_2026-11-23.txt`](C_CI_VALIDATION_2026-11-23.txt) — 최신 자동 검증: 기본 347 + native PostgreSQL 10 + HTTP 20 통과
+
+- [`C_SUPABASE_LIVE_QA_2026-11-23.txt`](C_SUPABASE_LIVE_QA_2026-11-23.txt) — 실제 임시 계정 3개로 채팅·Auth·RLS·Realtime 검증 완료

@@ -1,0 +1,71 @@
+Supabase 연결 및 실제 임시 계정 채팅 검증
+2026-11-23 / codex/c-payment-chat
+
+프로젝트 연결
+- ku-saju / saju-dev 조직·프로젝트 접근 확인.
+- 기존 publishable/secret API 키를 .env.local에 저장했다. 키 생성·회전·권한 변경 없음.
+- 저장 시 로컬 loopback의 일회성 설정 창을 사용했다. 키 값을 채팅/명령 인수/Git에 복사하지 않았다.
+- 임시 설정 서버는 저장 후 종료됐으며, 브라우저 작업 메모리도 초기화했다.
+- DB URL과 SCORE_HMAC_SECRET을 유지하고 .env.local 권한 0600/Git 제외를 확인했다.
+- 관리자 REST 조회 200, Auth 설정 조회 200 확인.
+- 익명 프로필 조회는 401/42501로 거부됐다. RLS·테이블 권한에 따른 정상 차단이다.
+
+실제 Supabase 임시 계정 검증 — 9개 시나리오 모두 통과
+- 사용자 요청에 따라 임시 Auth 계정 3개를 만들었다.
+- 도메인은 예약된 qa.example.invalid이며, 임시 로컬 QA 서버 프로세스에만 허용했다.
+  .env.local의 korea.ac.kr 설정과 Supabase 전역 학교 정책은 바꾸지 않았다.
+- Admin generateLink로 테스트 OTP를 생성했다. 실제 이메일을 발송하지 않았다.
+- A의 /api/auth/verify에서 OTP를 검증하고 세션 쿠키를 받아 /api/me의 실제 Auth UUID를 대조했다.
+- 이미 사용한 OTP 재사용도 400으로 거부됨을 확인했다.
+- 테스트 프로필에는 fortune_results를 만들지 않아 정상 점수 기반 후보 풀에 들어가지 않는다.
+- 채팅 권한만 테스트 주문으로 준비했고 결제 영수증/실제 청구는 만들지 않았다.
+
+검증 내용
+1. 외부 메일 발송 없는 테스트 Auth 계정 3개 생성
+2. 실제 Auth OTP 확인, 쿠키 세션, 본인 UUID 확인 (OTP 재사용 거부 포함)
+3. 정상 추천 후보에서 제외되는 채팅 전용 fixture 준비
+4. 기존 대화 권한 재사용 → 요청 → 상대 수락, 제3자 수락 거부 및 방 재사용
+5. C Realtime source에 실제 JWT 클라이언트 3개 연결
+6. 두 참여자에게 저장된 메시지 실시간 전달, 제3자의 HTTP·RLS·Realtime 접근 차단
+7. 구독 중단 사이의 메시지를 C message-session으로 재접속·기록 복구
+8. 양방향 차단 후 API 송신 거부, RLS 기록 비공개, 새 Realtime 메시지 차단
+9. 로그아웃으로 쿠키 제거 후 API 401 확인
+
+실행 결과
+- 최신 실행: C_Supabase_QA_41458c0a.json (outputs).
+- success=true / cleaned=true / passed=9.
+- 모든 테스트 계정과 생성한 프로필·매칭·주문·요청·방·메시지·차단 데이터 정리 완료.
+- 자신의 run metadata와 무작위 ID로만 정리하며 기존 팀원 데이터는 삭제하지 않는다.
+- 정리 성공 시 ignored QA manifest도 제거한다. 미정리 시 manifest를 남겨 복구 범위를 확인한다.
+
+발견·수정한 통합 문제
+- 프로젝트가 발급한 OTP를 앱의 고정 6자리 검증이 차단했다.
+- src/lib/auth/email-otp.ts에 Supabase 지원 범위(숫자 6~10자리)를 공유 규칙으로 만들었다.
+- 로그인 폼의 입력 길이·안내와 서버 검증을 같은 규칙으로 맞췄다.
+- 실제 토큰 일치·유효기간·일회성 여부는 계속 Supabase가 검증한다.
+- 잘못된 형식 및 6/8/10자리 회귀 검사 8개를 추가했고 모두 통과했다.
+- 참고: https://supabase.com/docs/guides/local-development/cli/config#authemailotp_length
+
+자동 검사
+- 기본 테스트 355개 통과: B/통합 111 + C 129 + A 97 + UI 18.
+- 전체 ESLint, strict 타입 검사, 실제 설정의 Next 빌드 통과.
+- 별도 native PostgreSQL 10개와 CI HTTP 20개는 C 자동 workflow에서 다시 확인한다.
+- 브라우저 정적 번들에 관리자 키/DB 비밀번호/HMAC 비밀 키가 없음을 확인했다.
+
+재실행 (공유 개발 프로젝트에 테스트 계정을 만들고 정리하는 명시적 수동 명령)
+1. Node 24.22.1 및 pnpm 11.25.0, 기존 .env.local의 실제 키/DB CA 설정을 사용한다.
+2. 테스트 전용 프로세스 환경으로 빌드:
+   ALLOWED_EMAIL_DOMAINS=qa.example.invalid NEXT_PUBLIC_APP_URL=http://127.0.0.1:3024 pnpm build
+3. 같은 환경으로 서버 실행 (다른 터미널에서 유지):
+   ALLOWED_EMAIL_DOMAINS=qa.example.invalid NEXT_PUBLIC_APP_URL=http://127.0.0.1:3024 pnpm start --hostname 127.0.0.1 --port 3024
+4. 검사:
+   C_LIVE_QA_PROJECT_REF=acghfykdtorpxkbmknja C_LIVE_QA_APP_URL=http://127.0.0.1:3024 pnpm test:supabase:chat
+5. 임시 서버는 테스트 뒤 종료한다. 앱의 정상 학교 도메인은 .env.local의 korea.ac.kr 그대로다.
+- live QA는 CI에서 자동 실행하지 않는다. 대상 프로젝트/DB/loopback URL을 명시해야 실행된다.
+- 로컬 Turbopack dev 서버는 FSEvent 권한 제한이 있어 이 검증에는 빌드된 서버를 사용했다.
+
+아직 남은 것
+- 실제 학교 이메일의 SMTP 발송·수신과 사람의 코드 입력 UI는 이번 임시 계정 검증 범위 밖이다.
+- A/B 사주 결과 저장·신규 사용자의 프로필/추천 생성 연결은 남아 있다.
+- Groble 실제 결제·서명 검증·환불 API와 상품 정책은 공식 답변을 기다린다.
+- main과 A/B 브랜치는 수정하지 않고 C 브랜치에만 저장한다.

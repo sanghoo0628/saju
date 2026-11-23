@@ -8,7 +8,7 @@
 A의 Next.js·인증·사주 코드(dd336a2)를 기존 B/C 코드에 통합했습니다.
 인증된 학교 계정으로 `/matches`, `/requests`, `/chat`, `/orders/return`을 사용하도록 화면과 API를 연결했습니다.
 기존 결제 권한·채팅방은 추가 결제 없이 사용하며, 새로운 결제와 웹훅 확정은 Groble 공식 연동 전까지 503으로 거부합니다.
-실제 Supabase 로그인 및 두 계정 간 송수신 검증은 API 키 설정 후 수행해야 합니다.
+실제 Supabase 임시 계정 3개로 OTP·세션·요청·수락·송수신·Realtime·RLS·차단·로그아웃 9개 시나리오를 검증하고 데이터를 정리했습니다. 실제 학교 이메일 수신과 사람의 입력 UI는 별도 확인이 필요합니다.
 A 사주 결과를 B의 fortune_results/private_birth_data에 저장하는 연결도 아직 필요합니다.
 프로필 화면(`/profile`)은 B의 화면 연결을 기다리는 안내 화면이고, GET/PUT API는 연결했습니다.
 
@@ -43,7 +43,7 @@ CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS �
 ## 검사
 
 ```bash
-pnpm test        # B/DB+연동 111, C 129, A 89, UI 18 = 347
+pnpm test        # B/DB+연동 111, C 129, A 97, UI 18 = 355
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -56,11 +56,14 @@ pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 10개
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
 네이티브 PostgreSQL 검사 10개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45118851935)에서 모두 통과했습니다.
-로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 347개에 포함되지 않습니다.
+로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 355개에 포함되지 않습니다.
 
 C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
 문서만 바뀐 커밋은 제외합니다. 실제 Supabase/사주/결제 키는 CI에 필요하지 않습니다.
 [자동 검증 결과와 재실행 방법](docs/C_CI_VALIDATION_2026-11-23.txt)을 참고하세요.
+
+[실제 Supabase 임시 계정 검증 및 수동 재실행](docs/C_SUPABASE_LIVE_QA_2026-11-23.txt)도 완료했습니다.
+이 명령은 명시적 opt-in이 필요하며 공유 개발 프로젝트의 테스트 데이터만 생성·정리합니다. CI에서는 실행하지 않습니다.
 
 ## 독립 C 화면 데모
 
