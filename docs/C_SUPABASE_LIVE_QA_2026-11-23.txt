@@ -49,7 +49,11 @@ Supabase 연결 및 실제 임시 계정 채팅 검증
 자동 검사
 - 기본 테스트 355개 통과: B/통합 111 + C 129 + A 97 + UI 18.
 - 전체 ESLint, strict 타입 검사, 실제 설정의 Next 빌드 통과.
-- 별도 native PostgreSQL 10개와 CI HTTP 20개는 C 자동 workflow에서 다시 확인한다.
+- GitHub CI 코드 커밋: 6da8048381b2c4e4b5fe53178f15a3dfa98237c4.
+- CI 실행: https://github.com/sanghoo0628/saju/actions/runs/45121995036
+- App, API and UI / Native PostgreSQL concurrency 두 작업 모두 success.
+- 기본 355개 + native PostgreSQL 10개 = 자동 테스트 365개 통과.
+- CI HTTP 20개, lint/typecheck, Next/Vite build 모두 통과.
 - 브라우저 정적 번들에 관리자 키/DB 비밀번호/HMAC 비밀 키가 없음을 확인했다.
 
 재실행 (공유 개발 프로젝트에 테스트 계정을 만들고 정리하는 명시적 수동 명령)
