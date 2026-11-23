@@ -394,4 +394,3 @@ AI 설명기는 계산 이후에만 실행한다. 점수 변경, 없는 근거 �
 - HRUM API 레퍼런스: https://hrum.ai/docs.html
 - HRUM 궁합: https://hrum.ai/compat-api.html
 - HRUM 이용약관: https://hrum.ai/terms.html
-

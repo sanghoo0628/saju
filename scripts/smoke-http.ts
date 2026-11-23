@@ -29,7 +29,8 @@ assert.equal(crossOrigin.status, 403);
 assert.equal((await crossOrigin.json()).error.code, 'INVALID_ORIGIN');
 count++;
 const webhook = await fetch(`${base}/api/webhooks/groble`, { method: 'POST', redirect: 'manual', body: '{}' });
-assert.equal(webhook.status, 404, 'C webhook is deliberately not implemented');
+assert.equal(webhook.status, 503, 'Groble remains unavailable until the official gateway is configured');
+assert.equal((await webhook.json()).code, 'PROVIDER_UNAVAILABLE');
 assert.equal(webhook.headers.get('location'), null);
 count++;
 const fortune = await fetch(`${base}/api/fortune`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: '{}' });
@@ -40,6 +41,18 @@ const matchingBasis = await fetch(`${base}/api/fortune/matching-basis`, { method
 assert.equal(matchingBasis.status, 503);
 assert.equal((await matchingBasis.json()).error.code, 'SERVICE_NOT_CONFIGURED');
 count++;
+for (const path of ['/api/orders/nonexistent', '/api/chat-requests', '/api/conversations']) {
+  const response = await fetch(`${base}${path}`);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'PROVIDER_UNAVAILABLE');
+  count++;
+}
+for (const path of ['/api/match-results', '/api/profile']) {
+  const response = await fetch(`${base}${path}`);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, 'SERVICE_NOT_CONFIGURED');
+  count++;
+}
 console.log(`PASS ${count} local HTTP checks (no external calls/payments)`);
 }
 

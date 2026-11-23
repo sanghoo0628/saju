@@ -8,6 +8,8 @@
 
 2026-11-22 리뷰 반영: 사주 계산 동시 요청을 사용자당 2건으로 제한(전체 128건 상한은 유지)하고 회귀 테스트를 추가했다. `/api/fortune`의 공급자 시간 초과는 504로 매칭 입력 API와 통일했다. lint·typecheck·A 89개 테스트·Next 빌드 통과. 시간당 호출 쿼터는 여전히 DB 연결 후 과제다. 팀 저장소 규칙에 맞춰 A README와 계획 문서는 `docs/`로 옮겼다.
 
+2026-11-23 사주 입력 저장 연결: B 계약(`docs/CONTRACT_profile_matching.md` 9장)에 따라 선택 동의 `matchingStorageConsent: "matching_birth_storage_v1"`를 추가했다. `/api/fortune` 결과가 ready이고 동의가 있을 때만 `recordBirthInput`(생년월일·양음력·윤달·시간대만, 출생 시간 제외)을 호출하고, `/api/fortune/matching-basis`가 ready이고 동의가 있으면 `recordMatchingAnalysis`로 3주 분석을 저장한다. 저장 실패는 사주 결과를 막지 않으며 응답의 `matchingStorage`/`analysisStorage` 상태(stored·not_consented·skipped·unavailable·failed)로 화면에 안내한다. lint·typecheck·전체 테스트(B 147·결제 129·A 107·UI 18)·Next 빌드 통과. 실제 saju-dev DB 저장은 `20261123000100` 마이그레이션 적용과 실제 로그인 후 미검증.
+
 ## 상태표
 
 | 영역 | 상태 | 범위와 남은 작업 |

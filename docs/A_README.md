@@ -1,3 +1,11 @@
+> 2026-11-23 실제 Supabase 연결 검증 후 OTP 입력을 숫자 6~10자리로 맞췄습니다.
+> 아래의 고정 6자리 안내는 이전 계약입니다. 실제 코드 유효성은 Supabase가 계속 검증합니다.
+> 최신 검증·남은 작업: [Supabase 검증 기록](C_SUPABASE_LIVE_QA_2026-11-23.txt).
+
+> 2026-11-23 C 브랜치 통합 갱신: Next.js 라우트와 C 화면을 실제 코드로 연결했습니다.
+> 아래의 "C 런타임 없음" 등의 설명은 A 단독 브랜치 작성 당시 기록입니다.
+> 현재 조립부와 미완료 범위는 [C 통합 결과](C_A_INTEGRATION_2026-11-23.txt)를 확인하세요.
+
 # 사이 — 대학생 사주 소개 서비스, A 공통 프로젝트
 
 2026-11-16. **A 담당 범위인 공통 화면·인증·사주 연결 기반**입니다. B의 DB/프로필/매칭과 C의 주문/채팅 모듈은 아직 통합하지 않았습니다.
@@ -113,4 +121,3 @@ DB 마이그레이션·RLS·테스트 계정 절차는 [supabase/README.md](../s
 공식 문서와 npm registry를 2026-11-16 확인했습니다: [Next.js 설치](https://nextjs.org/docs/app/getting-started/installation), [Node 24.22.1](https://nodejs.org/en/blog/release/v24.22.1), [pnpm 설치](https://pnpm.io/installation), [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [이메일 OTP](https://supabase.com/docs/guides/auth/auth-email-passwordless).
 
 Next 16.4.6/React 19.3.1/Supabase SSR 0.12.7을 고정했습니다. Next의 린트 플러그인이 ESLint 10/TypeScript 7을 지원하지 않아 호환되는 ESLint 9.39.5/TypeScript 6.0.3을 사용합니다. ESLint 9의 지원 종료 경고는 알려진 개발 도구 제한이며, 플러그인 지원 시 함께 갱신해야 합니다. 설치된 팀 도구 pnpm 11.25.0을 유지했고 pnpm 12로 전역 변경하지 않았습니다.
-

@@ -1,0 +1,77 @@
+name: C integration checks
+
+on:
+  push:
+    branches: [codex/c-payment-chat]
+    paths-ignore: ['docs/**', 'README.md', '**/INTEGRATION*.txt']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['docs/**', 'README.md', '**/INTEGRATION*.txt']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# No shared Supabase or payment credentials are needed by either job.
+env:
+  CI: 'true'
+  NEXT_TELEMETRY_DISABLED: '1'
+  APP_ENV: development
+  NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+  NEXT_PUBLIC_SUPABASE_URL: ''
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ''
+  SUPABASE_SECRET_KEY: ''
+  DATABASE_URL: ''
+  DATABASE_SSL_CA_PATH: ''
+  SCORE_HMAC_SECRET: ''
+  ALLOWED_EMAIL_DOMAINS: campus.example.edu
+  SAJU_PROVIDER: mock
+  SAJU_API_KEY: ''
+  SAJU_FINGERPRINT_SECRET: ''
+  MATCHING_STRATEGY: legacy_demo_v1
+  PAYMENTS_ENABLED: 'false'
+  MOCK_PAYMENTS_ENABLED: 'false'
+
+jobs:
+  app:
+    name: App, API and UI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm demo:build
+      - name: Start isolated app and check HTTP routes
+        run: pnpm test:http:local
+
+  postgres:
+    name: Native PostgreSQL concurrency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run isolated multi-connection PostgreSQL tests
+        run: pnpm test:postgres

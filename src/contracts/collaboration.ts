@@ -1,6 +1,6 @@
 /**
  * A's compatibility import path. The source of truth is C's shared contract,
- * mirrored unchanged from sanghoo0628/saju@c098404 (also unchanged at b4cdf40).
+ * re-exported from C's shared contract.
  * This imports types only; it does not activate C's runtime or payment routes.
  * See docs/A_BC_INTEGRATION_DESIGN.md for the integration boundary.
  */
@@ -16,6 +16,8 @@ export type {
   ConversationResponse,
   AcceptChatRequestResponse,
   ChatMessage,
+  SendMessageRequest,
+  SendMessageRequest as SendMessageInput,
   ApiErrorResponse,
   CreateOrderRequest as CreateConversationOrderInput,
   CreateOrderResponse as CreateConversationOrderResult,
@@ -25,10 +27,6 @@ export type {
   ChatMessage as MessageDto,
 } from '../../contracts/payment-chat';
 
-/** POST /api/conversations/:id/messages. C derives sender from verified auth.
- * Conversation ID belongs in the URL. C currently has no server idempotency key
- * for message POST; do not automatically retry an ambiguous send.
+/** Message POST may include clientMessageId; reuse it only for the same send.
+ * Sender and participation remain server-verified. The UI performs explicit retries only.
  */
-export interface SendMessageInput {
-  body: string;
-}

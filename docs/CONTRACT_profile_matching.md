@@ -1,214 +1,190 @@
-# 📄 프로필 · 매칭 계약서 (B ↔ C)
+# 📄 프로필 · 매칭 계약서 (B ↔ C, A 저장 계약 포함) — v3
 
-> 구현 전에 **테이블 구조와 함수 입출력**을 먼저 맞추기 위한 문서입니다.
-> SQL 초안: [`supabase/migrations/0002_profiles_matching.sql`](../supabase/migrations/0002_profiles_matching.sql)
-> (로컬 PostgreSQL 16에서 Supabase Auth를 흉내 낸 스텁으로 적용·테스트 완료)
+> 2026-11-16 기획 변경과 C 리뷰를 반영한 버전이다. v1(주문별 추천, 오행 배점, `create_match_for_order`)은 폐기했다.
+> SQL: [`supabase/migrations/`](../supabase/migrations) · 검증: `npm test`
+> (PGlite(WASM Postgres)에 Supabase auth/storage 스텁을 만들고 모든 마이그레이션을 적용한 뒤 RLS와 제약을 테스트한다)
+> 2026-11-23 v3: A 사주 입력 저장 계약(9장)과 후속 마이그레이션 `20261123000100` 추가. 기존 6개는 수정하지 않았다.
+> 기존 6개는 개발 DB(saju-dev)에 적용됐고 C 가 실제 연동을 검증했다. `20261123000100` 은 팀 확인 후 적용한다.
 
-## 0. 공통 원칙
+## 0. 과금 흐름과 v1 대비 변경
 
-| 항목 | 결정 |
-|---|---|
-| Supabase 프로젝트 | A·B·C 공통 1개 사용 |
-| 사용자 ID | **`auth.users.id` (uuid)로 통일**. `profiles.id`, `orders.buyer_id`, `blocks.*_id`, `chat_*.user_id`가 전부 이 값 |
-| 내부 함수 | `private` 스키마 (API로 노출 안 됨). 클라이언트는 `public`의 RPC만 호출 |
-| 탈퇴 | `profiles.status = 'deleted'`로 처리하는 soft delete |
-| 에러 코드 | `MT4xx` 형식의 커스텀 SQLSTATE (아래 표) |
-
-**마이그레이션 순서**: `0001_orders_blocks.sql` (C) → `0002_profiles_matching.sql` (B) → `0003_chat.sql` (C)
-
----
-
-## 1. 테이블 소유권
-
-| 테이블 | 담당 | 비고 |
-|---|---|---|
-| `profiles` | B | 공개 카드용 기본 정보 |
-| `profile_saju` | B | 출생정보와 사주 계산 결과. **본인만 조회 가능** |
-| `match_results` | B | 주문별 추천 3명. 함수로만 쓸 수 있음 |
-| `orders` | C | 아래 **최소 컬럼**이 꼭 있어야 함 |
-| `blocks` | C | 아래 **최소 컬럼**이 꼭 있어야 함 |
-| `chat_requests`, `chat_rooms`, `chat_participants`, `chat_messages` | C | 이름과 최소 컬럼은 아래 6번 참고 |
-
-### C 테이블에서 B 함수가 참조하는 최소 컬럼
-```sql
-orders (
-  id                 uuid primary key,
-  buyer_id           uuid not null references auth.users(id),
-  status             text not null,   -- 'pending' | 'paid' | 'refund_required' | 'refunded' | 'failed' | 'cancelled'
-  amount             int,
-  groble_payment_id  text unique,
-  paid_at            timestamptz
-)
-blocks (
-  blocker_id uuid, blocked_id uuid, created_at timestamptz,
-  primary key (blocker_id, blocked_id)
-)
+```
+무료 추천 3명 공개 → 상대 1명 선택(matchResultId) → 그 상대에 대해 500원 결제
+→ 대화 요청 → 상대 수락(무료) → 채팅
 ```
 
----
-
-## 2. 프로필 스키마 (B)
-
-### `profiles`: 공개 가능한 정보
-| 컬럼 | 타입 | 설명 |
+| 항목 | v1 (폐기) | v2 |
 |---|---|---|
-| `id` | uuid PK | = `auth.users.id` |
-| `nickname` | text (2~20자) | |
-| `gender` | `'male' \| 'female'` | 대운 계산에도 사용 |
-| `avatar_url` | text | |
-| `university`, `major` | text | |
-| `bio` | text (≤300자) | |
-| `interests` | text[] | |
-| `is_public` | bool | false면 추천 후보에서 제외 |
-| `status` | `'active' \| 'deleted'` | |
-| `deleted_at`, `created_at`, `updated_at` | timestamptz | |
+| 추천 3명 | 500원 결제 후 주문별 생성 | **무료**, 결제와 무관하게 저장·조회 |
+| 결제 단위 | 주문당 추천 3명 | **구매자 → 선택한 상대 1명**, 상대당 500원 |
+| 결제 전 확인 | 후보 3명 이상 | 선택한 상대의 공개·활성 상태 + 양방향 차단 |
+| 매칭 점수 | 오행 40 / 일지 30 / 일간 20 / 띠 10 | **원래 기획**: 생년월일 HMAC → 1~10,000, 문과 + / 이과 −, `abs(내 점수 + 상대 점수)` 작은 순 상위 3명 |
+| 사주 풀이 | `profile_saju` 에서 궁합 계산에 사용 | 매칭과 별개. A 의 사주 프로그램 응답을 `fortune_results.fortune` 에 저장 |
+| 주문 상태 | paid / refund_required / … | **pending / fulfilled / cancelled / refund_pending / refunded** (C 와 통일) |
+| 제거된 함수 | `get_match_eligibility`, `create_match_for_order`, `get_match_results(order_id)`, `saju_compat` 등 | `get_or_create_match_results` (서버 전용) |
 
-### `profile_saju`: 비공개 (본인만 조회)
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| `user_id` | uuid PK | |
-| `birth_date`, `birth_time`(null=모름), `calendar_type`(`solar`/`lunar`), `is_leap_month`, `birth_place` | | 입력값 |
-| `pillars` | jsonb | `{"year":"丙戌","month":"戊戌","day":"甲子","hour":"辛未"\|null}` |
-| `day_stem`, `day_branch`, `year_branch` | text (한자 1글자) | 궁합 계산용 |
-| `elements` | jsonb | `{"wood":2,"fire":1,"earth":3,"metal":1,"water":1}` |
-| `yongsin` | `wood\|fire\|earth\|metal\|water` | |
-| `calc_version`, `computed_at` | | 계산 로직 버전 관리용 |
+v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이블 분리, `status` 기반 soft delete, 프로필 필드(닉네임·성별·학교·전공·소개·관심사), 내부 함수는 `private` 스키마(API 로 노출되지 않음).
 
-### RLS
-- `profiles`, `profile_saju`: **본인 행만** select/insert/update 가능. 다른 사람 프로필은 아래 RPC로만 볼 수 있음.
-- `match_results`: 구매자 본인만 select 가능. 쓰기 정책은 없음(함수에서만 씀).
+## 1. 사용자 ID
 
----
+모든 사용자 ID 는 `auth.users.id`(uuid) 다. `profiles.id`, `match_results.user_id/target_id`, `orders.buyer_id/target_id`, `blocks.*_id`, `chat_requests.requester_id/recipient_id`, `conversations.user_a/user_b`, `messages.sender_id` 가 모두 이 값이다.
 
-## 3. 후보 조건 (eligibility와 매칭이 같은 기준을 씀)
+## 2. 테이블
 
-`private.eligible_candidates(buyer_id)` **하나로만** 판단합니다. 결제 전 확인과 결제 후 매칭이 이 함수 하나를 함께 쓰기 때문에 두 결과가 어긋나지 않습니다.
+| 테이블 | 담당 | 키·주요 컬럼 | 브라우저(authenticated) 권한 |
+|---|---|---|---|
+| profiles | B | `id`, nickname(2~20), gender, university, major, bio, interests, photo_path, track, is_public, status(active/deleted) | 조회: `can_view_profile`. 수정: 본인 nickname·gender·university·major·bio·interests·photo_path·is_public 만 |
+| private_birth_data | B·A | `user_id`, calendar_type, birth_date(양력만), lunar_date(음력 원문), is_leap_month, timezone, consent_version, consented_at. birth_time 은 저장하지 않음 | 본인 조회 |
+| fortune_results | B | `user_id`, base_number, score, score_version, score_input(solar/lunar/lunar_leap), fortune·program_version(선택) | 본인 조회 |
+| fortune_analyses | B·A | `user_id`, A 의 matching_fortune_v1 (3주 원국·분석·비교 키·버전) | 없음 (서버 전용) |
+| match_results | B | `id`, user_id(추천받은 사람), target_id, rank, distance, target_score | 본인 조회 |
+| orders | C | `id`, buyer_id, target_id, match_result_id, amount(=500), status, reference | 본인 조회 |
+| payments | C | `transaction_id`, order_id(unique), amount | 없음 |
+| chat_requests | C | `id`, requester_id, recipient_id, order_id, status(pending/accepted/rejected), created_at | 당사자 조회, 차단 시 숨김 |
+| conversations | C | `id`, user_a < user_b, created_at | 참여자 조회, 차단 시 숨김 |
+| messages | C | `id`(uuid), conversation_id, sender_id, body(1~2000), created_at | 참여자 조회, 차단 시 숨김 |
+| blocks | C·B | (blocker_id, blocked_id) | 본인 차단 조회·추가·해제 |
+| reports | C·B | `id`, reporter_id, target_id, reason, status | 본인 신고 추가·조회 |
 
-제외 대상:
+- 프로필 생성과 점수·추천·주문·결제·채팅 쓰기는 **서버(service_role)만** 한다. 브라우저에는 채팅 쓰기 권한이 없다.
+- 프로필의 계열(track)은 저장된 점수 부호로 서버가 정한다. 점수와 계열이 어긋날 수 없다.
+- Realtime(Postgres Changes)은 `messages` 를 publish 하고, 구독에도 위 조회 RLS 가 적용된다.
+- `match_results`의 브라우저 조회는 `id, user_id, target_id, rank, created_at` 컬럼만 허용한다. 상대 점수와 이를 역산할 수 있는 거리는 서버만 조회한다.
+
+| 마이그레이션 | 내용 |
+|---|---|
+| `20261116000100_profiles_and_private_data.sql` | private 스키마, profiles, private_birth_data, fortune_results, blocks, reports |
+| `20261116000200_orders_and_matches.sql` | match_results, orders, payments |
+| `20261116000300_chat.sql` | chat_requests, conversations, messages |
+| `20261116000400_access_rls.sql` | 판단 함수, RLS, 테이블·컬럼 권한, Realtime |
+| `20261116000500_matching_functions.sql` | 후보 선정, 무료 추천 저장·조회 |
+| `20261116000600_storage_profile_photos.sql` | 비공개 사진 버킷과 정책 |
+| `20261123000100_birth_input_and_analysis.sql` | (후속) 음력 원문·시간대·동의 기록, 점수만 저장 허용, fortune_analyses, 사진 5MB·이미지 3종 제한 |
+
+## 3. 무료 추천 (B)
+
+### 후보 조건 — `private.match_candidates(user)`
+- 요청자: 활성 + 공개 동의 + 점수 있음. 아니면 0명이다. 내가 공개해야 남을 볼 수 있다. 대화 요청을 받은 상대가 내 프로필을 봐야 하기 때문이다.
+- 제외: 본인, 비공개, 탈퇴, 점수 없음, **양방향 차단**, 이미 추천된 상대.
+- 정렬: `abs(내 점수 + 상대 점수)` 오름차순, 동점이면 `id` 오름차순. `src/lib/matching.ts` 와 같은 규칙이며 테스트가 두 구현의 결과를 비교한다.
+
+### 저장·조회 — `public.get_or_create_match_results(p_user)` (service_role 전용)
+- 저장된 추천이 3개 미만이면 부족한 만큼만 채운다. 이미 저장된 추천은 바꾸지 않으므로 새로고침해도 같은 결과, 같은 `id` 가 나온다.
+- 저장된 상대가 나중에 비공개·탈퇴·차단되면 결과에서 숨기기만 하고 다른 사람으로 다시 채우지 않는다.
+- 같은 사용자의 동시 호출은 profiles 행 잠금으로 직렬화한다.
+- 반환: `id, target_id, rank, distance, created_at`
+
+### B 의 HTTP API ([`src/contracts/matching.ts`](../src/contracts/matching.ts))
+
+| 경로 | 설명 |
+|---|---|
+| `GET /api/match-results` | `{ status: 'ready'｜'fortune_required'｜'profile_required'｜'no_candidates', results: [{ id, rank, profile }] }` — **`id` 가 C 의 `matchResultId`**. 결과는 1~3명이며 실제 인원만 내려간다. `fortune_required` = 생년월일 미저장 → `/fortune`, `profile_required` = 프로필 미등록·비공개 → `/profile` |
+| `GET /api/profile` | `{ profile: 내 프로필｜null, birthInputSaved, lockedTrack: 'humanities'｜'science'｜null }` (v3에서 변경) |
+| `PUT /api/profile` | 프로필 생성·수정. 점수가 없으면 `track` 필수 → 서버가 저장된 생년월일 + 계열로 고정 점수 생성. 이후 계열 변경은 `TRACK_LOCKED`(409). 생년월일 미저장 `FORTUNE_REQUIRED`(409), 계열 누락 `TRACK_REQUIRED`(400), 비밀 키 미설정 `NOT_CONFIGURED`(503) |
+
+프로필 카드 필드: `userId, nickname, gender, university, major, bio, interests, track, photoUrl`(만료 서명 URL).
+
+## 4. 상대별 주문 (C) — DB 가 보장하는 것
+
+| 규칙 | 제약 |
+|---|---|
+| 주문은 본인이 추천받은 상대에게만 | `orders(match_result_id, buyer_id, target_id)` → `match_results(id, user_id, target_id)` 복합 FK. 남의 추천 ID 나 다른 상대로는 insert 가 실패한다 |
+| 같은 구매자-상대의 활성 주문은 하나 | `orders_active_pair_uniq` (buyer_id, target_id) where status in (pending, fulfilled) |
+| 금액 500원 | `orders.amount = 500` |
+| 참조값·거래 ID 고유, 주문당 결제 하나 | `orders.reference` unique, `payments` PK(transaction_id), `payments.order_id` unique |
+| 같은 상대에게 중복 요청 금지 | `chat_requests (requester_id, recipient_id)` unique |
+| 두 사람의 채팅방은 하나 | `conversations` user_a < user_b + unique(user_a, user_b) |
+
+결제 확정에는 추천 생성이 없다. C 의 웹훅은 결제 기록 후 `private.profile_available(target)` 과 `private.is_blocked_between(buyer, target)` 을 확인한다. 통과하면 `fulfilled`, 아니면 `refund_pending` 이다.
+
+## 5. C 의 `ports.ts` ↔ DB
+
+| C | DB |
+|---|---|
+| `Actor.userId` / `Order.userId` | `orders.buyer_id` |
+| `Order.reference / targetId / matchResultId / amountKrw / status` | `orders.reference / target_id / match_result_id / amount / status` |
+| `MatchResult { id, userId, targetId }` | `match_results.id / user_id / target_id` |
+| `result(id)` | `select id, user_id, target_id from match_results where id = $1` |
+| `profileAvailable(userId)` | `select private.profile_available($1)` (공개 동의 + 활성) |
+| `blocked(a, b)` | `select private.is_blocked_between($1, $2)` (양방향) |
+| `activeOrderForPair(u, t)` | `orders where buyer_id=$1 and target_id=$2 and status in ('pending','fulfilled')` |
+| `orderByReference(ref)` | `orders where reference = $1 for update` |
+| `paymentOrder(tx)` / `savePayment(tx, orderId)` | `payments` select / insert |
+| `ChatRequest { from, to }` | `chat_requests.requester_id / recipient_id` |
+| `requestForPair(from, to)` | `chat_requests where requester_id=$1 and recipient_id=$2` |
+| `Conversation.members` | `[user_a, user_b]` (저장 시 정렬) |
+| `conversationForPair(a, b)` | `conversations where user_a = least($1,$2) and user_b = greatest($1,$2)` |
+| `ChatMessage { id, senderId, createdAt }` | `messages.id(uuid) / sender_id / created_at` |
+| `messages(conv, afterId)` | `order by created_at, id` 최대 100개. afterId 는 같은 conversation 소속인지 확인 |
+| `requestsForUser / conversationsForUser` | 본인 관계, `not private.is_blocked_between(...)`, `order by created_at desc, id desc` |
+
+### 트랜잭션 구현 제안
+C 의 `Repository.transaction()` 을 Supabase REST 호출로 이어 붙이면 원자성이 없다.
+- **1안 (권장)**: C 의 Repository 를 Postgres 직접 연결(`DATABASE_URL`, Supabase 풀러)로 구현한다. `begin … commit` 안에서 위 SQL 을 실행한다. 비즈니스 규칙은 C 의 `service.ts` 한 곳에만 둔다. 직접 연결은 `private` 스키마 함수를 호출할 수 있다.
+- 2안: B 가 각 쓰기 작업을 RPC(DB 함수)로 제공한다. 이 경우 규칙이 TS 와 SQL 두 곳에 생긴다.
+
+어느 쪽이든 동시 요청은 4장의 고유 제약이 최종적으로 막는다.
+
+## 6. 프로필 열람 권한 — `private.can_view_profile(viewer, target)`
+
+차단이 있으면 무조건 불가. 상대가 탈퇴했으면 불가. 그 외에는 다음 중 하나면 가능하다.
 1. 본인
-2. `is_public = false` (비공개)
-3. `status = 'deleted'` (탈퇴)
-4. 사주 미입력 (`profile_saju` 없음)
-5. **양방향 차단**: 내가 차단했거나 상대가 나를 차단한 경우
-6. 이 구매자에게 **이전 주문에서 이미 추천된 사람** (재구매할 때 같은 사람이 또 나오는 것 방지 · ❓결정 필요)
+2. 무료 추천으로 받은 상대 (상대가 공개 동의 중일 때). **결제가 필요 없다.**
+3. 나에게 대화를 요청한 사람 (pending/accepted)
+4. 채팅 상대
 
----
+`profiles` 의 select RLS 와 `profile-photos` 버킷 조회 정책이 이 함수를 쓴다. 사진은 서버가 만든 만료 서명 URL 로만 내려간다.
 
-## 4. 함수 계약
-
-### ① 결제 전 확인: `get_match_eligibility()` · 클라이언트용
-```ts
-const { data } = await supabase.rpc('get_match_eligibility')
-// data: { eligible: boolean, reason: null | 'PROFILE_INCOMPLETE' | 'NOT_ENOUGH_CANDIDATES', candidate_count: number }
-```
-- 입력: 없음 (`auth.uid()`를 사용하므로 다른 사람 기준으로 조회할 수 없음)
-- C가 주문을 생성하는 RPC 안에서도 **`private.check_match_eligibility(auth.uid())`로 한 번 더 확인**해 주세요. 클라이언트의 확인 결과만 믿으면 안 되기 때문이에요.
-
-### ② 결제 후 매칭: `private.create_match_for_order(p_order_id, p_buyer_id)` · DB 내부 전용
-| | |
+## 7. 🔒 공개하지 않는 정보
+| 비공개 | 위치 |
 |---|---|
-| 입력 | `p_order_id uuid`, `p_buyer_id uuid` |
-| 출력 | `table(rank smallint, candidate_id uuid, score numeric)` 3행 |
-| 멱등성 | 이미 그 주문의 결과가 있으면 **재계산하지 않고 저장된 결과를 그대로 반환** |
-| 결정성 | 점수 내림차순으로 정렬하고, 동점이면 `md5(order_id‖candidate_id)` 순서. 같은 입력이면 항상 같은 결과 |
-| 동시성 | `orders` 행을 `FOR UPDATE`로 잠가서 웹훅이 동시에 두 번 와도 순서대로 처리 |
-| 권한 | anon/authenticated는 실행 불가. C의 security definer 함수 안에서만 호출 |
+| 생년월일, 양/음력, 윤달, 시간대 | `private_birth_data` (본인만). 태어난 시간은 저장하지 않는다 |
+| 3주 원국·용신·강약 분석 | `fortune_analyses` (서버만) |
+| 매칭 점수, 기본 숫자, 사주 풀이 원문 | `fortune_results` (본인만). 프로필 카드·추천 응답에 포함하지 않는다 |
+| 이메일 | `auth.users` 에만 있다 |
+| 결제 거래 | `payments` (브라우저 접근 없음) |
 
-| 에러 | SQLSTATE | 의미 |
+## 8. ❓ 함께 정할 것
+1. **추천 재생성**: 지금은 한 번 저장한 추천을 유지한다. 주기적 갱신이나 추가 추천을 둘지 정해야 한다.
+2. **성별·희망 조건 필터**: `profiles.gender` 는 저장만 하고 매칭에는 쓰지 않는다. 연애 매칭이면 필터를 추가해야 한다.
+3. **거절 후 정책**: 자동 환불 여부. 거절된 상대에게는 재요청을 막는다(unique).
+4. **환불 후 채팅방**: 처리 방침을 정해야 한다.
+5. **차단 후 기록**: 지금은 차단하면 양쪽 모두 요청·방·기록이 보이지 않고, 해제하면 다시 보인다. C 서비스 동작과 같다.
+6. **생년월일·계열 수정**: v3 기본값은 "첫 프로필 저장 때 점수 고정, 이후 계열 변경 불가, 생년월일을 다시 저장해도 점수 유지". 정정 요청 처리(관리자 재생성 등)는 정해야 한다.
+7. **음력 점수 키**: 음력은 양력으로 바꾸지 않고 `lunar:YYYY-MM-DD`(윤달은 `lunar-leap:`)로 해시한다. 같은 사람이 양력·음력으로 각각 입력하면 점수가 다를 수 있다. 오락용 고정 숫자라 허용했지만, 양력 변환으로 통일하려면 변환 라이브러리 도입을 A 와 정해야 한다.
+
+## 9. A 사주 입력 → B 저장 계약 (2026-11-23, A 확인 필요)
+
+### 시점과 입력
+| 단계 | 누가 | 무엇을 |
 |---|---|---|
-| `ORDER_NOT_FOUND` | MT404 | 주문 없음 |
-| `BUYER_MISMATCH` | MT403 | 주문의 buyer_id ≠ p_buyer_id |
-| `ORDER_NOT_PAID` | MT402 | 결제 전 주문 |
-| `INSUFFICIENT_CANDIDATES` | MT409 | 결제 시점에 후보가 3명 미만. **이 함수가 저장한 내용은 롤백됨** |
+| 1. 사주 결과 확인 | A `POST /api/fortune` 성공 후 | 사용자가 **매칭용 저장 동의**를 했으면 `getMatchingService().recordBirthInput(user.id, input)` 호출. `input` 은 A 의 `fortuneInputSchema` 로 검증된 값에서 `birthDate, calendar, isLeapMonth, timezone` 만 |
+| 2. (선택) 3주 분석 | A `POST /api/fortune/matching-basis` 가 `ready` 일 때 | `recordMatchingAnalysis(user.id, matchingInput)` → `fortune_analyses`. 추천 자격·점수와 무관 |
+| 3. 프로필 첫 저장 | B `PUT /api/profile` `{..., track}` | 저장된 생년월일 + 계열 + `SCORE_HMAC_SECRET` → `fortune_results` (없을 때만 insert, 동시 요청에도 먼저 저장된 값 유지) |
+| 4. 무료 추천 | B `GET /api/match-results` | 기존 그대로 |
 
-### ③ 결제 기록 + 매칭 = 한 트랜잭션 · C 구현, 연결 예시
-Groble 웹훅 서버가 `service_role`로 **RPC 한 번**만 호출합니다. Postgres 함수 하나는 그 자체로 하나의 트랜잭션입니다.
+- 점수는 HRUM 결과와 관계없다. HRUM 강약 점수·mock 결과를 점수로 쓰지 않는다. HRUM 이 실패해도 생년월일 저장과 점수 생성은 가능하다.
+- 계열(문과·이과)은 A 폼이 아니라 B 프로필 화면에서 받는다. `providerSex` 를 성별·계열로 복사하지 않는다.
+- 출생 시간·성별 옵션·계산 옵션은 저장하지 않는다 (점수에 필요 없음).
+- 동의 버전: `matching_birth_storage_v1` (`BIRTH_STORAGE_CONSENT_VERSION`). A 화면의 "DB에 저장하지 않아요" 문구를 매칭용 저장 동의로 바꿔야 한다. 동의하지 않으면 1단계를 호출하지 않고, 사용자는 추천을 받을 수 없다(`fortune_required`).
 
-```sql
--- [C 담당] public.confirm_payment_and_match(p_order_id, p_groble_payment_id, p_amount) → jsonb
-select * into v_order from orders where id = p_order_id for update;
-if v_order.status = 'pending' then
-  -- 금액 검증 후
-  update orders set status='paid', groble_payment_id=..., paid_at=now() where id = p_order_id;
-end if;
-if v_order.status = 'paid' then
-  begin
-    select jsonb_agg(...) into v_matches from private.create_match_for_order(p_order_id, v_order.buyer_id) r;
-  exception when sqlstate 'MT409' then           -- 후보 부족
-    update orders set status = 'refund_required' where id = p_order_id;
-    return '{"status":"refund_required"}';
-  end;
-  return jsonb_build_object('status','paid','matches', v_matches);
-end if;
-```
-테스트로 확인한 동작:
-- 웹훅 1회 → `paid` + 추천 3명 저장
-- **웹훅 재전송 → 같은 결과를 반환하고 중복 저장 없음**
-- 결제는 됐는데 그 사이 후보가 줄어든 경우 → `paid` 기록은 남고, 상태가 `refund_required`로 바뀌며 추천은 0건 → C가 환불 처리
-- 일반 사용자는 이 함수를 호출할 수 없음
+### 음력·윤달·출생 시간
+| 입력 | 저장 | 점수 키 |
+|---|---|---|
+| 양력 | `birth_date`(date) | `YYYY-MM-DD` (v1 과 동일) |
+| 음력 | `lunar_date`(원문 text, 1~12월·1~30일) | `lunar:YYYY-MM-DD` |
+| 음력 윤달 | `lunar_date` + `is_leap_month = true` | `lunar-leap:YYYY-MM-DD` |
+| 출생 시간 | 저장 안 함 | 사용 안 함 |
 
-### ④ 추천 결과 조회: `get_match_results(p_order_id)` · 클라이언트용
+음력 날짜는 양력 date 로 넣지 않는다 (음력 2월 30일 등). 실제 윤달 존재 여부·양력 변환 검증은 B 가 하지 않는다 (A 문서와 같은 원칙).
+
+### A 쪽 연결 예시 (A 담당 파일, 우민님 확인 후 반영)
 ```ts
-const { data } = await supabase.rpc('get_match_results', { p_order_id })
+// src/app/api/fortune/route.ts — 결과가 ready 이고 저장 동의가 있을 때만
+const input = fortuneInputSchema.parse(body);           // 이미 하는 검증
+const result = await calculateFortune(input, getFortuneServiceOptions(user.id));
+if (result.status === 'ready' && body.matchingStorageConsent === 'matching_birth_storage_v1') {
+  await getMatchingService().recordBirthInput(user.id, input);
+}
 ```
-- **본인이 결제한(`paid`) 주문만** 조회 가능. 남의 주문이나 없는 주문이면 둘 다 `ORDER_NOT_FOUND`를 돌려줘서 주문이 있는지조차 알 수 없게 함
-- 그 사이 탈퇴, 비공개 전환, 차단이 생긴 후보는 `available=false`로 내려가고 프로필 필드는 가려짐
-
-| 반환 필드 | 예시 |
-|---|---|
-| `rank` | 1 |
-| `candidate_id` | uuid (대화 요청 보낼 때 사용) |
-| `available` | true |
-| `nickname`, `avatar_url`, `gender`, `university`, `major`, `bio`, `interests` | |
-| `day_stem` | `己` (일간) |
-| `dominant_element` | `fire` (가장 많은 오행) |
-| `score` | 88.00 |
-| `score_detail` | `{"day_stem":"천간합","day_branch":"육합","year_branch":"보통","elements":32}` |
-
-### ⑤ 프로필 열람: `get_public_profile(p_user_id)` · 채팅·요청 화면용
-열람 가능한 경우 (차단이 있으면 무조건 불가):
-1. 본인
-2. 내가 결제한 주문의 추천 결과에 상대가 있음
-3. 상대가 나에게 대화 요청을 보냄 (`chat_requests.status in ('pending','accepted')`)
-4. 같은 채팅방 참여자
-
-반환 필드는 ④에서 `rank`, `score`, `available`을 뺀 것과 같습니다.
-
----
-
-## 5. 🔒 공개하지 않는 정보
-| 비공개 | 이유 |
-|---|---|
-| 생년월일, 태어난 시간, 출생지, 양/음력 | 개인 식별 가능 |
-| 이메일 | `auth.users`에만 있고 어떤 RPC에서도 반환하지 않음 |
-| 사주 원문 (`pillars` 8글자, `elements` 전체 수치, `yongsin`) | 생년월일을 역추적할 수 있음 |
-| 띠(`year_branch`) | 나이(출생 연도)를 추정할 수 있음 |
-
-`score_detail`의 관계 라벨(예: "일지 육합")은 상대 사주의 일부를 암시하지만, 원문을 복원할 수는 없어서 공개 범위로 판단했어요.
-
----
-
-## 6. 채팅 연동 (C 초안을 기다리는 중)
-
-B가 맞춰 둔 테이블 이름과 최소 컬럼입니다. 다르게 만들면 알려 주세요.
-```sql
-chat_requests     (id, requester_id, recipient_id, status 'pending'|'accepted'|'rejected'|'cancelled', ...)
-chat_participants (room_id, user_id, primary key (room_id, user_id))
-```
-채팅 RLS 헬퍼 (B 제공):
-```sql
-private.is_room_member(p_room_id uuid) returns boolean   -- auth.uid() 기준, security definer라 RLS 재귀 없음
--- 예: create policy msg_select on chat_messages for select to authenticated
---       using (private.is_room_member(room_id));
-```
-`chat_requests`를 만들 때 **차단 관계면 요청 불가** 조건을 `private.is_blocked_between(a, b)`로 체크하면 돼요.
-
----
-
-## 7. ❓ 함께 정할 것
-1. 재구매할 때 **이전에 추천된 사람을 제외**할지 (현재 초안은 제외)
-2. 성별이나 선호 조건으로 후보를 거를지 (연애 매칭인지 친구 매칭인지에 따라 결정)
-3. 주문이 `refunded`가 되면 추천 결과 열람을 막을지 (현재 초안은 `paid`만 열람 가능)
-4. 추천받은 사람에게 "누군가 나를 추천받았다"는 사실을 알릴지
-5. `profile_saju` 계산값을 클라이언트가 직접 쓰게 할지, Edge Function에서만 쓰게 할지 (조작 방지 차원)
-6. 궁합 배점 (현재: 오행 40 / 일지 30 / 일간 20 / 띠 10)
+`matchingStorageConsent` 필드 이름과 strict 스키마 반영 방법은 A 가 정한다.

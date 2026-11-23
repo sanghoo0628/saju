@@ -1,0 +1,146 @@
+최신: A 저장 코드 합류 후 통합 준비 재검증 (2026-11-23)
+- 외부 C 3e99ac7의 A 저장 코드를 보존하고 문서 커밋을 rebase했다.
+- 최종 코드 0029435, https://github.com/sanghoo0628/saju/actions/runs/45156222365
+- 기본 462개(B150+C167+A107+UI24+도구14) + native12 + HTTP20 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 실제 실행 도구 6단계도 새 A 코드에서 통과. 수동 17개는 미실행 상태로 유지한다.
+- 실제 학교 메일·계정 전체 흐름·공식 PG·환불 정책은 별도 확인 대상이다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: A 합류용 통합 검증 도구 준비 (2026-11-23)
+- C_INTEGRATION_TOOLS_2026-11-23.txt와 INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt 확인.
+- 코드 2809c0e, https://github.com/sanghoo0628/saju/actions/runs/45155219028
+- 기본 452개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- pnpm verify:integration --run의 6단계 실제 실행도 통과. fullUserFlowVerified=false와 수동 미실행 표시 유지.
+- 실제 학교 메일·A 저장 연결·공식 PG 및 정책 승인은 별도 확인 대상이다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: B CLI·테스트 후속 커밋 통합 검증 (2026-11-23)
+- C_B_FOLLOWUPS_2026-11-23.txt에 rebase 확인, 후속 통합, 로컬 주소/seed 수정 기록.
+- 코드 6feddd6, https://github.com/sanghoo0628/saju/actions/runs/45152189892
+- 기본 438개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- TOML 정적 점검과 개발 DB 메이저 버전 17 읽기 조회 완료. CLI 스택 구동/원격 반영은 실행하지 않았다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: B 프로필 통합·후속 DB 호환성 검증 (2026-11-23)
+- C_B_PROFILE_INTEGRATION_2026-11-23.txt 및 C_DEV_DB_READONLY_2026-11-23.json 확인.
+- B d4d8eea 통합, 검증 코드 68d13f4, https://github.com/sanghoo0628/saju/actions/runs/45150958500
+- 기본 438개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 실제 dev DB는 마이그레이션 7개/권한/Realtime/읽기 SQL을 READ ONLY로 확인(쓰기 0회).
+- 이번에 실제 계정 간 채팅 송수신을 재실행한 것은 아니다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: 메시지 시각 정밀도 보존 검증 (2026-11-23)
+- C_TIMESTAMP_PRECISION_2026-11-23.txt에 수정 전 실패, 정밀도 보존, 105개 SQL→HTTP→timeline 검증을 정리했다.
+- 코드 35852bf, https://github.com/sanghoo0628/saju/actions/runs/45135260851
+- 기본 402개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 로컬 작업 위치는 iCloud 밖 /private/tmp/saju-c-20261123이다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: 이전 대화 요청 조회 검증 (2026-11-23)
+- C_REQUEST_HISTORY_2026-11-23.txt에 화면 변경과 브라우저 시나리오를 정리했다.
+- 코드 f7e590e, https://github.com/sanghoo0628/saju/actions/runs/45133936967
+- 기본 396개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: 채팅 읽기 위치 유지 검증 (2026-11-23)
+- C_CHAT_READING_POSITION_2026-11-23.txt에 화면 변경과 실제 스크롤 관측값을 정리했다.
+- 코드 51a0926, https://github.com/sanghoo0628/saju/actions/runs/45129233593
+- 기본 390개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: C API 응답 지연 복구 검증 (2026-11-23)
+- C_REQUEST_TIMEOUT_2026-11-23.txt에 변경 및 장애 재현 결과를 정리했다.
+- 코드 a5595e5, https://github.com/sanghoo0628/saju/actions/runs/45128134156
+- 기본 390개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+최신: 메시지 재전송 중복 방지 검증 (2026-11-23)
+- C_MESSAGE_IDEMPOTENCY_2026-11-23.txt에 변경 및 장애 재현 결과를 정리했다.
+- 코드 8cb318e, https://github.com/sanghoo0628/saju/actions/runs/45125662054
+- 기본 376개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
+후속 실제 연결·OTP 수정 검증 (2026-11-23)
+- C_SUPABASE_LIVE_QA_2026-11-23.txt를 최신 기록으로 확인한다.
+- 코드 6da8048의 CI https://github.com/sanghoo0628/saju/actions/runs/45121995036 에서
+  기본 355 + native 10 + HTTP 20, lint/typecheck/build 모두 성공했다.
+- 실제 Supabase 임시 계정 3개를 사용한 9개 시나리오도 통과·정리 완료했다.
+- 아래 347개 기록은 이전 코드 시점의 검증이다.
+
+C 자동 검증 및 PostgreSQL 동시성 검사
+2026-11-23 / codex/c-payment-chat
+
+C 코드 커밋: 9ade7f6807e750d52f536727fd94df8f4dea1b66
+GitHub 실행: https://github.com/sanghoo0628/saju/actions/runs/45118851935
+
+추가한 것
+- .github/workflows/c-validation.yml
+  C 브랜치 push와 main 대상 PR에서 앱 검사와 네이티브 PostgreSQL 검사를 별도 작업으로 실행한다.
+  문서만 바뀐 push/PR은 제외한다. workflow_dispatch도 선언했지만 현재 main에 병합하지 않았다.
+  main은 수정하지 않는다. required check나 조직 권한도 변경하지 않는다.
+- App, API and UI 작업
+  고정 Node/pnpm 버전, frozen lockfile, lint, 타입 검사, 기본 347개 테스트, Next/Vite 빌드,
+  로컬 앱을 시작해 수행하는 HTTP 검사 20개를 실행한다.
+- Native PostgreSQL concurrency 작업
+  Ubuntu 실행 환경의 임시 PostgreSQL로 기존 동시성 검사 10개를 실행한다.
+  실제 운영 pg 저장소·같은 연결의 트랜잭션·SERIALIZABLE 재시도를 사용한다.
+- scripts/check-http-local.mjs / pnpm test:http:local
+  이미 빌드된 Next 앱을 비어 있는 loopback 포트에서 시작하고 기존 HTTP 검사 후 종료한다.
+  준비 확인 30초 제한, 정상/실패/중단 시 서버 종료 처리를 포함한다.
+  자식 프로세스의 Supabase/DB/사주/결제 키를 비워 외부 서비스 호출을 막는다.
+  실제 .env.local은 읽어 수정하거나 삭제하지 않는다.
+  build는 미설정 테스트 환경에서 먼저 수행해야 한다 (CI 환경은 자동으로 설정됨).
+
+격리 및 권한
+- GitHub 저장소 권한은 contents:read만 사용한다.
+- checkout 인증 정보를 작업 디렉터리에 보존하지 않는다.
+- Actions는 공식 배포 태그에서 확인한 commit SHA로 고정했다.
+- Supabase/HRUM/Groble 비밀 키와 공유 DB 연결 문자열을 CI에 등록하지 않았다.
+- 실제 결제나 공유 개발 DB 쓰기를 실행하지 않는다.
+- HMAC 비밀 키와 로컬 환경 파일도 그대로 유지했다.
+
+PostgreSQL 검사 10개
+1. 독립된 backend PID 두 개와 트랜잭션 후 역할 복구 확인
+2. 주문 생성 12개 동시 요청이 주문 하나로 수렴
+3. 동일 결제 웹훅 12개가 결제 기록 하나로 확정
+4. 동시 대화 요청·수락이 요청 하나/채팅방 하나로 수렴
+5. 양방향 동시 수락이 정렬된 같은 채팅방을 재사용
+6. 결제 기록 후 실패하면 결제·권한을 함께 롤백
+7. 같은 거래 ID를 서로 다른 주문에서 경쟁 사용할 때 하나만 성공
+8. 상대 삭제 후 결제 사실 보존 및 refund_pending 처리
+9. 100개 페이지의 마이크로초 커서와 다른 방 커서 거부
+10. 관리자 DB 연결에서도 참여자/양방향 차단 검사 유지
+
+로컬 환경 제한
+- 기존 오류는 initdb의 shmget: Operation not permitted이다.
+- PostgreSQL은 기본 mmap에서도 작은 System V IPC 영역을 사용한다.
+  메모리 옵션으로 해결됐다고 보고하거나 시스템 보안·커널 설정을 변경하지 않았다.
+- 참고: https://www.postgresql.org/docs/18/kernel-resources.html
+- 로컬 native 실행 제한은 남아 있지만 GitHub의 별도 Linux 실행 환경에서 실제 동시성 검사를 수행했다.
+
+현재 확인된 결과
+- 공식 actionlint v1.7.12로 workflow 검증 통과 (공식 배포 파일 checksum 확인 후 사용).
+- 새 실행 스크립트의 ESLint 및 Node 구문 검사 통과.
+- 로컬 HTTP 자동 시작/검사/종료 20개 통과.
+- GitHub Native PostgreSQL concurrency: success, 10 passed (10).
+- GitHub App, API and UI: success.
+  B/통합 111 + C 129 + A 89 + UI 18 = 347 passed, failures=0.
+  lint/typecheck/Next build/Vite demo build/HTTP 20개 모두 통과.
+- 별도 native 10개를 합치면 자동 테스트 357개 + HTTP 검사 20개 통과.
+- GitHub 실행 전체 conclusion=success, 두 작업 모두 실패 단계 없음.
+- 문서만 갱신하는 후속 커밋은 paths-ignore 규칙에 따라 CI를 다시 실행하지 않는다.
+  위 결과는 코드 커밋 9ade7f6에 대한 실제 실행 기록이다.
+
+남은 외부 연결
+- ku-saju 초대/수락, Supabase API 키 설정 후 실제 계정과 RLS/Realtime 전달 확인.
+- A/B 사주 결과 저장 연결 및 Groble 공식 gateway 연동은 별도다.
+- 이번 검사는 실제 Groble 청구나 실제 학생 계정 간 송수신 완료를 의미하지 않는다.

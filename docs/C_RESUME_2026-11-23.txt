@@ -1,0 +1,176 @@
+최신: 프로필 계열 선택 표시 수정 (2026-11-23)
+- C_PROFILE_RADIO_LAYOUT_2026-11-23.txt 확인. 문과/이과 줄바꿈 원인인 라디오 폭/여백 수정.
+- 실제 Safari 프로필에서 한 줄 표시 및 정상 크기 라디오 확인, Next webpack build/typecheck 통과.
+- 학교 이메일 로그인/사주 저장/프로필/무료 추천은 사용자 확인 완료, Safari 추천 화면도 확인.
+- 수정 앱은 4302/profile, 실행 폴더 /private/tmp/saju-c-profilefix-20261123.
+- 실제 Groble 결제 및 전체 결제→채팅 검증은 대기 중. 아래는 이전 기록.
+
+최신: 모바일 화면·환불 재확인 복구 (2026-11-23)
+- C_MOBILE_QA_2026-11-23.txt 확인. 모바일 320/390/430px 가로 넘침 수정 확인.
+- 지연·환불·새로고침 주문/대화 복구·무료 수락·메시지 브라우저 검증 완료(로컬 데모).
+- 환불 재조회 연결 실패 때 마지막 확인 상태와 오류 안내를 유지하도록 수정.
+- 코드 ffe9af5, CI490개+HTTP20 및 lint/typecheck/Next/Vite build 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45161083639
+- 데모 서버 4173 실행 중. 실제 앱 4300은 직전 빌드 유지, SMTP 완료 후 재개.
+- main/공유 DB 변경 없음. 실제 학교 메일·PG 확인은 미완료. 아래는 이전 기록.
+
+최신: SMTP 대기 중 추천 조회 복구 (2026-11-23)
+- C_MATCH_RESULTS_RECOVERY_2026-11-23.txt 및 C_AUTH_DELIVERY_2026-11-23.txt 확인.
+- 실제 학교 이메일 OTP는 Supabase over_email_send_rate_limit(429), Custom SMTP off 확인.
+- A가 B에게 SMTP/한도/숫자 토큰 템플릿 설정 요청. 완료 답변 대기 중.
+- 인증 오류 안내 c86b500 푸시, 무료 추천 GET의 15초 제한·취소·재시도 안내 연결.
+- 추천 복구 코드 ea2e44b, 최종 CI485개+HTTP20 및 lint/typecheck/Next/Vite build 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45159681997
+- 실제 메일 수신/실사용자 로그인은 아직 미검증. 현재 4300은 c86b500 빌드 유지.
+- 공유 DB/main 변경 없음. 아래는 이전 기록이다.
+
+최신: A 저장 코드 합류 후 통합 준비 도구 재검증 (2026-11-23)
+- C_INTEGRATION_TOOLS_2026-11-23.txt의 동시 원격 변경 반영 절을 확인한다.
+- C 원격 3e99ac7에 A 저장 코드가 합류해 문서 푸시를 fetch/rebase로 맞췄다.
+- 저장 동의 matchingStorageConsent=matching_birth_storage_v1 및 B 저장 호출 코드가 포함됐다.
+- 실행 도구의 6단계 재통과, 기본 462개 + HTTP20. 실제 학교 계정·PG·정책 승인은 미검증/미정으로 유지한다.
+- 사주 결과의 프로필 진입 안내 문구를 실제 등록 화면에 맞췄다. 최종 CI474+HTTP20 통과(코드 0029435).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45156222365
+- 공유 DB/main에 쓰지 않았다. 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
+최신: A 합류 후 통합 검증 도구·체크리스트 준비 (2026-11-23)
+- C_INTEGRATION_TOOLS_2026-11-23.txt와 INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt를 먼저 확인한다.
+- pnpm verify:integration으로 계획, --run으로 격리 자동 검사, --postgres로 native 검사를 선택한다.
+- 직접 확인할 17개 시나리오와 팀 정책 2개를 정리했다. 자동 검사 통과로 수동 확인을 완료 처리하지 않는다.
+- 기본 452개 + HTTP20, lint/typecheck/build 및 실행 도구의 6단계 실제 실행 통과.
+- native12와 최종 앱 CI 통과(코드 2809c0e). 공유 DB/main에 쓰지 않았다.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45155219028
+- 원격 main은 외부 PR #1 병합으로 9fe80845가 됐다. 기존 A dd336a2이며 새 사주 저장 연결은 아니다.
+- 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
+최신: B 후속 CLI 설정·테스트 hook 통합 (2026-11-23)
+- C_B_FOLLOWUPS_2026-11-23.txt를 먼저 확인한다.
+- B rebase 후 기능 tree가 C와 동일함을 확인하고 84fc5d3/ae3beb5만 반영했다.
+- CLI 로컬 주소·미사용 seed 정리, hookTimeout=60000 반영.
+- 기본 438개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- DB 쓰기·CLI 스택 기동은 하지 않았다. native 12개/앱 CI 모두 통과(코드 6feddd6).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45152189892
+- 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
+최신: B 프로필 통합·개발 DB 후속 SQL 확인 (2026-11-23)
+- C_B_PROFILE_INTEGRATION_2026-11-23.txt를 먼저 확인한다.
+- B d4d8eea를 C에 cherry-pick(5b68327), /profile 화면과 새 프로필 API 통합.
+- dev DB 마이그레이션 7개·권한·Realtime·C 읽기 SQL 확인, 공유 DB 쓰기 0회.
+- 기본 438개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- native 12개와 앱 CI 모두 통과했다(코드 68d13f4).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45150958500
+- A 사주 입력 저장 동의/호출 연결과 실제 신규 가입 전체 흐름 검증은 남아 있다.
+- 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
+최신 C 작업: 메시지 시각 정밀도 보존 (2026-11-23)
+- C_TIMESTAMP_PRECISION_2026-11-23.txt를 먼저 확인한다.
+- iCloud dataless 때문에 /private/tmp/saju-c-20261123에서 C 브랜치 작업을 이어갔다.
+- 서버 ISO 시각과 화면 정렬에서 마이크로초를 보존해 연속 메시지 뒤집힘을 수정했다.
+- 기본 402개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- native 12개와 앱 CI 모두 성공했다(코드 35852bf).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45135260851
+- 기존 Documents 프로젝트는 덮어쓰지 않았다. 아래는 이전 기록이다.
+
+최신 C 작업: 이전 대화 요청 조회 (2026-11-23)
+- C_REQUEST_HISTORY_2026-11-23.txt를 먼저 확인한다.
+- 거절·수락 이력을 다시 열 수 있고 기존 채팅방에는 무료로 즉시 연결한다.
+- 기본 396개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- native 12개와 앱 CI 모두 성공(코드 f7e590e).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45133936967
+- DB/API/결제 정책 변경은 없다. 아래는 이전 기록이다.
+
+최신 C 작업: 채팅 읽기 위치 유지 (2026-11-23)
+- C_CHAT_READING_POSITION_2026-11-23.txt를 먼저 확인한다.
+- 지난 대화를 읽는 중에는 위치를 유지하고 최신 메시지 보기 버튼으로 이동한다.
+- 바닥에서 수신하거나 내 메시지를 전송하면 최신 내용을 따라간다.
+- 별도 데모의 긴 대화로 브라우저 검증 완료. DB/API 변경은 없다.
+- 기본 390 + native 12 + HTTP 20, lint/typecheck/build 및 전체 CI 성공(코드 51a0926).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45129233593
+- 아래는 이전 작업 기록이다.
+
+최신 C 작업: API 응답 지연 복구 (2026-11-23)
+- C_REQUEST_TIMEOUT_2026-11-23.txt를 먼저 확인한다.
+- C 브라우저 API의 헤더/본문 읽기 전체에 기본 15초 제한을 적용했다.
+- POST 자동 재시도는 하지 않고 화면의 수동 재확인·재전송을 사용한다.
+- 로컬 기본 390개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- 네이티브 PostgreSQL 12개와 앱 CI 모두 성공했다(코드 a5595e5).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45128134156
+- 아래는 이전 작업 기록이다.
+
+최신 C 작업: 채팅 재전송 중복 방지 (2026-11-23)
+- C_MESSAGE_IDEMPOTENCY_2026-11-23.txt를 먼저 확인한다.
+- 기본 376개 및 HTTP 20개, lint/typecheck/Next/Vite 빌드 통과.
+- DB 스키마 변경 없이 메시지 ID 기반으로 재전송을 처리한다.
+- native PostgreSQL 동시성 12개와 앱 CI 모두 통과했다(코드 8cb318e).
+- 최종 CI: https://github.com/sanghoo0628/saju/actions/runs/45125662054
+- 아래 기록은 이전 단계의 진행 상황이다.
+
+최신 외부 연결 완료 (2026-11-23)
+- C_SUPABASE_LIVE_QA_2026-11-23.txt를 먼저 확인한다.
+- Supabase 조직 초대와 API 키 로컬 설정 완료. 실제 임시 계정 3개로 9개 채팅/권한 시나리오 통과·정리 완료.
+- OTP 길이 통합 문제를 수정했고 기본 회귀 검사는 355개다.
+- 실제 학교 메일 발송, A/B 사주 저장, Groble 실제 결제는 남아 있다.
+- 아래의 API 키 미설정/초대 대기 설명은 이번 연결 이전의 역사 기록이다.
+
+후속 검증 완료 (2026-11-23)
+- C_CI_VALIDATION_2026-11-23.txt를 최신 검증 기록으로 먼저 확인한다.
+- GitHub Actions에서 기본 347개와 native PostgreSQL 10개, HTTP 20개 모두 통과했다.
+- 아래의 native 미검증 설명은 CI 검증 이전 시점의 기록이다. 로컬 IPC 실행 제한은 여전히 남아 있다.
+- Supabase 조직 초대/실제 계정·Groble 연동은 계속 대기 중이다.
+
+최신 후속 작업: A/C 통합 코드·검사·커밋 정보는 C_A_INTEGRATION_2026-11-23.txt를 먼저 확인한다.
+아래는 같은 날 통합 전 실시한 DB 읽기 검증 기록이며, 당시의 미병합·미커밋 설명은 이후 통합으로 대체된다.
+
+C 담당 재개 기록 — 2026-11-23 (Asia/Seoul)
+
+B 답변 반영 및 실제 개발 DB 확인
+- Supabase saju-dev, 프로젝트 ref acghfykdtorpxkbmknja (싱가포르).
+- 받은 DATABASE_URL, SCORE_HMAC_SECRET 및 프로젝트 URL을 .env.local에 저장했다.
+- .env.local은 파일 권한 0600, Git ignore 대상이다. 비밀 값은 이 문서에 포함하지 않는다.
+- publishable key, Supabase secret key, Groble 키는 아직 제공되지 않았다.
+
+읽기 전용 검증 완료
+- Supabase 공식 배포 CA를 명시하고 rejectUnauthorized: true로 TLS 서버 인증에 성공했다.
+- CA 로컬 경로: ../work/supabase-prod-ca-2021.crt (저장소 밖).
+- 최초 기본 CA / 시스템 CA만으로는 SELF_SIGNED_CERT_IN_CHAIN 오류가 났다.
+- BEGIN ISOLATION LEVEL SERIALIZABLE READ ONLY 안에서 SET LOCAL ROLE service_role 성공.
+- 트랜잭션 안 current_user=service_role, read_only=on, isolation=serializable 확인.
+- ROLLBACK 뒤 current_user=postgres로 복구 확인.
+- 마이그레이션 이력 20261116000100~20261116000600 총 6개 확인.
+- public 테이블 11개 모두 RLS 활성 확인. 실제 사용자별 RLS 동작을 검증한 것은 아니다.
+- C 재시도 대상 이름 5개 모두 존재:
+  orders_active_pair_uniq
+  chat_requests_requester_id_recipient_id_key
+  conversations_user_a_user_b_key
+  payments_pkey
+  payments_order_id_key
+- C 주문/결제/요청/대화/메시지 SQL에 필요한 컬럼 이름 모두 존재.
+- private.profile_available(uuid), private.is_blocked_between(uuid, uuid) 존재 및 service_role 실행 권한 확인.
+- 존재하지 않는 UUID로 위 두 함수를 실행했고 모두 false 반환 확인.
+- messages가 supabase_realtime publication에 등록되어 있음.
+- profile-photos 버킷 존재, 비공개(public=false).
+- authenticated는 match_results.target_id 조회 가능, target_score/distance 조회 불가.
+- 테스트 데이터 생성·결제·메시지 쓰기·마이그레이션 재적용은 하지 않았다.
+- 원본의 비밀 값/사용자 데이터 없는 메타데이터 보고서: ../work/supabase-readonly-2026-11-23.json
+
+원격 최신 코드 (fetch 완료, 아직 병합하지 않음)
+- C: codex/c-payment-chat, 964bf6d (이 문서 작성 전 기준).
+- A: feature/a-auth-fortune, dd336a2. Next.js·학교 인증·사주 API 코드가 새로 올라옴.
+- B: feature/b-db-matching, bb0de40. env 이름, Supabase CLI 설정, 점수/거리 조회 권한 관련 변경.
+- main: 31d1941, 수정하지 않음.
+- C tracked 소스 코드, 잠금 파일, 마이그레이션은 이번 확인에서 수정하지 않음.
+- 이번 확인에서 커밋·푸시하지 않았다. 이 인수인계 문서는 로컬 저장 상태다.
+
+실제 연결 시 주의할 구현 사항
+- pg 풀은 Supabase CA를 읽어 options.pool.ssl={ca, rejectUnauthorized:true}로 전달해야 한다.
+  createPaymentChatDatabase는 PoolConfig를 전달받을 수 있지만 현재 자동 CA 로더는 없다.
+  접속 성공을 위해 인증서 검증을 비활성화하지 않는다.
+- DATABASE_URL은 서버 전용이고, HMAC 비밀 키는 B가 준 동일 값 유지.
+- 새 env 이름: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, NEXT_PUBLIC_APP_URL.
+  C의 tracked .env.example은 아직 예전 이름이므로 A/B 통합 시 함께 정리한다.
+- A의 실제 사주 API/환경 변수, 로그인 함수, 패키지·Node 버전은 A 브랜치를 병합하기 전에 확인한다.
+- 실제 로그인 사용자 2명과 제3자 계정으로 요청·수락·메시지·차단·Realtime을 검증해야 한다.
+- 네이티브 PostgreSQL 동시성/재시도 테스트 10개는 이번에도 실행하지 않았다.
+- 기존 테스트 251개 통과 기록은 이전 구현 당시 결과이며 이번에 다시 실행하지 않았다.
+- Groble 서명/테스트 결제/환불 규격 답변은 계속 대기 중이다.
+- 무료 추천 3명 → 선택한 상대당 500원 → 대화 요청 → 수락 후 채팅 기준 유지.

@@ -3,17 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.25.0",
-  "engines": { "node": ">=24.22.1 <25", "pnpm": "11.25.0" },
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "pnpm": "11.25.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "pnpm run test:a",
-    "test:a": "node --conditions=react-server --import tsx --test tests/*.test.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "test:http": "node --import tsx scripts/smoke-http.ts"
+    "test": "pnpm test:b && pnpm test:payments && pnpm test:a && pnpm test:ui && pnpm test:integration-tools",
+    "test:a": "node --conditions=react-server --import tsx --test tests/a/*.test.ts",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm demo:build",
+    "test:http": "node --import tsx scripts/smoke-http.ts",
+    "test:b": "vitest run",
+    "test:payments": "node --test packages/payment-chat/test/*.test.ts",
+    "test:all": "pnpm test",
+    "test:ui": "vitest run --config packages/payment-chat-ui/vitest.config.ts",
+    "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "demo:dev": "pnpm --filter @saju/payment-chat-ui dev",
+    "demo:build": "pnpm --filter @saju/payment-chat-ui build",
+    "test:http:local": "node scripts/check-http-local.mjs",
+    "test:supabase:chat": "node --env-file=.env.local --import tsx scripts/verify-supabase-chat.ts",
+    "verify:supabase:readonly": "node --env-file=.env.local --import tsx scripts/verify-supabase-readonly.ts",
+    "test:integration-tools": "node --test scripts/test/*.test.ts",
+    "verify:integration": "node scripts/verify-integration.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -22,7 +37,8 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "0.0.1",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
@@ -31,6 +47,12 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.6",
     "tsx": "4.23.15",
-    "typescript": "6.0.3"
-  }
+    "typescript": "6.0.3",
+    "@electric-sql/pglite": "0.5.16",
+    "@electric-sql/pglite-socket": "0.2.19",
+    "@types/pg": "8.23.1",
+    "embedded-postgres": "18.6.0-beta.19",
+    "vitest": "5.1.0"
+  },
+  "type": "module"
 }

@@ -1,25 +1,33 @@
-# B 통합 전 데이터 경계
+# Supabase 설정과 마이그레이션
 
-A는 Supabase Auth 클라이언트만 연결했습니다. 현재 `supabase/migrations`에 실행할 SQL은 없고 DB/RLS 완료를 주장하지 않습니다. DB 담당 B와 C의 기존 migration을 받아 통합하기 전 빈 테이블이나 가짜 성공 RPC를 만들지 않습니다. 운영 DB에 실행한 명령은 없습니다.
+현재 SQL은 총 7개입니다. 기존 6개와 `20261123000100_birth_input_and_analysis.sql`을 함께 사용합니다. B가 공유 개발 DB에 적용한 이력과 C 호환성은 [통합 검증 기록](../docs/C_B_PROFILE_INTEGRATION_2026-11-23.txt)에서 확인할 수 있습니다.
 
-2026-11-18: 팀 저장소 sanghoo0628/saju의 기존 6개 migration과 C pg 어댑터를 원격에서 확인했습니다. 기존 SQL은 보존하며 HRUM 저장·legacy 점수 분리는 B의 추가 migration 대상입니다. 상세는 [A·B·C 통합 설계](../docs/A_BC_INTEGRATION_DESIGN.md)를 따릅니다. DATABASE_URL을 템플릿에 추가했지만 A 앱이 DB 연결이나 migration을 자동 실행하지는 않습니다.
+## CLI 로컬 설정
 
-## B가 제공해야 할 연결
+`config.toml`은 로컬 Supabase용 설정입니다. 이 파일을 커밋했다고 공유 개발 DB나 앱의 환경 변수가 자동으로 바뀌지는 않습니다.
 
-- `profiles`와 `private_birth_data`/`fortune_results` 분리. 비공개 원본·이메일·생일은 공개 DTO 제외.
-- 현재 사용자 자격(활성, 성인 확인, 학교 확인, 소개 동의, 프로필 완성)을 확인하는 서버 조회. A의 `/api/me`는 아직 `profileStatus=not_connected`, `eligibilityStatus=not_ready`.
-- 추천 배치는 무료 열람 3명으로 주문과 독립. 기존 `paid+fulfilled -> profile reveal` 정책은 폐기.
-- C의 주문/대상별 권한/요청/채팅 migration 통합. auth.users.id UUID FK, 정렬된 참여자쌍 고유 제약, 이벤트/메시지 멱등성.
-- 노출 schema에 RLS, 필요한 최소 GRANT. 프로필/사진/메시지의 본인·후보·수신자·참여자 권한을 별도로 검증. 관리자 클라이언트로 RLS 검증 금지.
-- 사주 저장 adapter는 검증된 userId를 별도로 받고 소유자 조건/RLS로 저장·조회. fingerprint/공급자/옵션 버전 보존. 영구 보관/삭제 기간을 먼저 확정.
+- 프로젝트 식별자: `saju`
+- API 포트: `54321`, DB 포트: `54322`, shadow DB: `54320`
+- Studio: `54323`, 테스트 메일 서비스: `54324`
+- PostgreSQL 메이저 버전: `17` (공유 개발 DB를 읽기 전용으로 조회해 일치 확인)
+- Auth 기본 사이트: `http://localhost:3000` (`.env.example`의 앱 주소와 동일)
+- 추가 허용 주소: `http://127.0.0.1:3000`
+- seed 실행: 비활성. 현재 `seed.sql`이 없으므로 seed 경로도 비워 두었습니다.
 
-## 재현 가능한 통합 테스트 계정 절차
+사이트 URL은 Auth의 링크와 리다이렉트 기준이고 seed 설정은 DB 시작/초기화 시 데이터 주입을 제어합니다. 키의 의미는 [공식 CLI 설정 문서](https://supabase.com/docs/guides/local-development/cli/config)를 참고하세요.
 
-1. 팀이 지정한 개발 Supabase 프로젝트와 B의 migration 버전을 기록합니다. 로컬 CLI는 `supabase --help` 및 해당 명령 도움말로 버전을 확인하고 migration을 적용합니다. 운영 프로젝트를 기본 대상으로 삼지 않습니다.
-2. 실제로 수신 가능한 승인 도메인의 테스트 메일 3개(Alice, Bob, Eve)를 준비합니다. A의 `/login`에서 OTP로 로그인해 각각 `GET /api/me`의 UUID를 기록합니다. 임의 UUID를 세션으로 주입하지 않습니다.
-3. B가 제공하는 seed를 **기록한 UUID**에 적용해 동의/활성/성인/선호가 준비된 테스트 프로필과 후보 3명 이상을 만듭니다. 추천 3명 검증에는 추가 후보 계정도 필요합니다. 계정·출생정보는 실제 이용자 데이터를 복사하지 않습니다.
-4. 서로 다른 브라우저 프로필로 본인/타인 정보, 무료 추천과 private 사진, 미인증 조회를 검사합니다. 사용자 토큰으로 직접 REST/Storage 접근도 확인합니다.
-5. C 연결 후 대상별 권한·중복 주문/웹훅·무료 수락·방 중복 방지·제3자 메시지 접근·환불 역순·재접속을 [TEAM_CONTRACT.md](../docs/TEAM_CONTRACT.md)의 기준대로 실행합니다.
-6. 실제 사주 원문·토큰·비밀키를 로그나 테스트 산출물에 남기지 않습니다. 테스트 계정 정리 시 채팅/결제 보존 정책을 B/C와 먼저 확인합니다.
+이번에는 TOML 구문·주소·seed·포트를 확인했습니다. CLI 로컬 서비스의 실제 시작, 로컬 Auth/Storage/Realtime 전체 흐름은 검증하지 않았습니다. 앱은 기존 공유 Supabase 개발 프로젝트 연결을 유지하며, 로컬 Supabase로 전환하려면 별도 환경 변수와 키 형식·DB TLS 설정을 함께 맞춰야 합니다.
 
-이 절차는 외부 설정 이후 실행해야 하며 이번 A 로컬 검증에서는 수행하지 않았습니다.
+`.temp`, `.branches`, 로컬 환경 파일은 Git에서 제외합니다. 실제 비밀 키나 테스트 사용자 정보는 이 설정 파일에 넣지 않습니다.
+
+## 테스트와 연결 상태
+
+`pnpm test`는 임시 PGlite와 모의 인증 구조로 7개 SQL 및 앱/모듈을 검증합니다. `pnpm test:postgres`는 별도 native PostgreSQL 다중 연결 검사이며 GitHub CI에서 실행합니다. 이 두 명령은 CLI 로컬 스택을 시작하지 않습니다.
+
+공유 개발 DB 메타데이터·C 읽기 쿼리만 점검하려면 실제 환경 파일이 준비된 작업 폴더에서 다음을 실행합니다.
+
+```bash
+C_READONLY_QA_PROJECT_REF=acghfykdtorpxkbmknja pnpm verify:supabase:readonly
+```
+
+사주 입력 저장 동의와 A의 `recordBirthInput`/`recordMatchingAnalysis` 연결 코드는 C에 합류했습니다. 실제 학교 계정으로 저장·프로필·추천 흐름을 확인하는 검증은 남아 있습니다. [B 계약서 9장](../docs/CONTRACT_profile_matching.md)을 기준으로 연결합니다. 기존 C의 대상별 500원 주문, 무료 수락, 수락 후 채팅 규칙은 유지합니다.

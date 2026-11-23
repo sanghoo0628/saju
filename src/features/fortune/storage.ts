@@ -1,0 +1,71 @@
+import "server-only";
+import { MATCHING_STORAGE_CONSENT_VERSION, type FortuneInput } from "./schema";
+import type { MatchingFortuneInput, ReadyMatchingFortuneInput } from "./matching-input";
+import type { FortuneResult } from "./types";
+
+/**
+ * Result of the optional matching storage step, returned next to the fortune result.
+ * - stored: B saved the input/analysis.
+ * - not_consented: the user did not opt in; nothing was sent to B.
+ * - skipped: the calculation was not ready, so nothing was saved.
+ * - unavailable: matching storage is not configured on this server.
+ * - failed: B rejected or could not save it. The fortune result is still returned.
+ */
+export type MatchingStorageStatus = "stored" | "not_consented" | "skipped" | "unavailable" | "failed";
+export interface MatchingStorageOutcome { status: MatchingStorageStatus }
+
+/** Only the fields B needs for the fixed score. Birth time, sex option and calculation options stay out. */
+export interface BirthInputForStorage {
+  birthDate: string;
+  calendar: "solar" | "lunar";
+  isLeapMonth: boolean;
+  timezone: string;
+}
+
+/** The two B MatchingService methods A calls; injected so routes and tests share one code path. */
+export interface FortuneStorageRecorder {
+  recordBirthInput(userId: string, input: BirthInputForStorage): Promise<void>;
+  recordMatchingAnalysis(userId: string, dto: ReadyMatchingFortuneInput): Promise<void>;
+}
+
+export function toBirthInputForStorage(input: FortuneInput): BirthInputForStorage {
+  return { birthDate: input.birthDate, calendar: input.calendar, isLeapMonth: input.isLeapMonth, timezone: input.timezone };
+}
+
+async function record(
+  consented: boolean,
+  ready: boolean,
+  getRecorder: () => FortuneStorageRecorder,
+  write: (recorder: FortuneStorageRecorder) => Promise<void>,
+): Promise<MatchingStorageOutcome> {
+  if (!consented) return { status: "not_consented" };
+  if (!ready) return { status: "skipped" };
+  let recorder: FortuneStorageRecorder;
+  try { recorder = getRecorder(); } catch { return { status: "unavailable" }; }
+  // Do not log raw errors: they can contain birth input.
+  try { await write(recorder); return { status: "stored" }; } catch { return { status: "failed" }; }
+}
+
+/** After POST /api/fortune: save the matching birth input only when ready and consented. */
+export function storeBirthInputIfConsented(
+  userId: string, input: FortuneInput, result: FortuneResult, getRecorder: () => FortuneStorageRecorder,
+): Promise<MatchingStorageOutcome> {
+  return record(
+    input.matchingStorageConsent === MATCHING_STORAGE_CONSENT_VERSION,
+    result.status === "ready",
+    getRecorder,
+    (recorder) => recorder.recordBirthInput(userId, toBirthInputForStorage(input)),
+  );
+}
+
+/** After POST /api/fortune/matching-basis: save the three-pillar analysis only when ready and consented. */
+export function storeMatchingAnalysisIfConsented(
+  userId: string, input: FortuneInput, result: MatchingFortuneInput, getRecorder: () => FortuneStorageRecorder,
+): Promise<MatchingStorageOutcome> {
+  return record(
+    input.matchingStorageConsent === MATCHING_STORAGE_CONSENT_VERSION,
+    result.status === "ready",
+    getRecorder,
+    (recorder) => recorder.recordMatchingAnalysis(userId, result as ReadyMatchingFortuneInput),
+  );
+}
