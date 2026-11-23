@@ -54,3 +54,12 @@ origin/main 82f466c를 C 브랜치에 병합했고 main 자체는 수정하지 �
 README 충돌은 팀원 표·원래 협업 규칙·최신 팀 상태를 모두 보존하고 C 후속 설명을 아래에
 붙여 해결했다. A의 OTP 검증 오류 구분·동의 재진입 코드와 env 정리도 보존했다.
 병합 뒤 B153개(직렬), A126개, lint/typecheck 통과. 최종 CI에서 전체 소스 기준으로 확인한다.
+
+최종 검증 완료
+기능 수정 4fe7a5c, 최신 main 보존 통합 d01b6bf488e0541affc10ee99aafd3486cb76c55.
+https://github.com/sanghoo0628/saju/actions/runs/45170760532
+App, API and UI / Native PostgreSQL concurrency 모두 success.
+B153+C174+A126+UI27+도구14 = 기본494개, native13 포함 총507개 통과.
+HTTP20, ESLint, 타입 검사, Next/Vite build 모두 통과했다.
+로컬 병렬 DB 준비 시간 초과는 CI 최종 실행에서 재현되지 않았다.
+사용자의 중단/저장 요청에 따라 여기서 작업을 멈추며 실제 PG 연결과 main PR 리뷰는 다음에 진행한다.
