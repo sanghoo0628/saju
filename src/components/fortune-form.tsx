@@ -2,12 +2,24 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { fortuneInputSchema, type FortuneInput } from '@/features/fortune/schema';
+import { fortuneInputSchema, MATCHING_STORAGE_CONSENT_VERSION, type FortuneInput } from '@/features/fortune/schema';
+import type { MatchingStorageStatus } from '@/features/fortune/storage';
 import type { FortuneResult } from '@/features/fortune/types';
 import type { MatchingFortuneInput } from '@/features/fortune/matching-input';
 import { FortuneAnalysisView, FortuneResultView } from './fortune-result';
 
 type Configuration = { provider: 'hrum' | 'mock' | 'unconfigured'; configured: boolean };
+function readStorageStatus(value: unknown): MatchingStorageStatus | null {
+  const status = (value as { status?: unknown } | null | undefined)?.status;
+  return status === 'stored' || status === 'not_consented' || status === 'skipped' || status === 'unavailable' || status === 'failed' ? status : null;
+}
+function BirthStorageNotice({ status }: { status: MatchingStorageStatus | null }) {
+  if (status === 'stored') return <div className="feedback success" role="status"><p>추천에 사용할 생년월일 정보를 저장했어요. 이제 프로필을 만들 수 있어요.</p><Link className="text-link" href="/profile">프로필 만들기 →</Link></div>;
+  if (status === 'not_consented') return <div className="feedback notice" role="status"><p>매칭용 저장에 동의하지 않아 생년월일을 저장하지 않았어요. 추천을 받으려면 저장에 동의하고 다시 계산해 주세요.</p></div>;
+  if (status === 'unavailable') return <div className="feedback error" role="status"><p>추천 연결을 준비하고 있어 생년월일을 아직 저장하지 못했어요.</p></div>;
+  if (status === 'failed') return <div className="feedback error" role="alert"><p>생년월일을 저장하지 못했어요. 잠시 후 같은 입력으로 다시 계산해 주세요. 5분 안이면 사주 계산은 다시 요청하지 않아요.</p></div>;
+  return null;
+}
 function matchingNotReadyMessage(result: Extract<MatchingFortuneInput, { status: 'not_ready' }>) {
   if (result.reasonCode === 'EXTERNAL_CONSENT_REQUIRED') return 'HRUM에 출생 정보를 전송하는 동의를 확인해 주세요.';
   if (result.reasonCode === 'PROVIDER_RATE_LIMITED') return '요청이 많아 잠시 후 다시 준비할 수 있어요.';
@@ -27,12 +39,14 @@ export function FortuneForm({ configuration }: { configuration: Configuration })
   const [matchingBusy, setMatchingBusy] = useState(false);
   const [matchingResult, setMatchingResult] = useState<MatchingFortuneInput | null>(null);
   const [matchingError, setMatchingError] = useState('');
+  const [birthStorage, setBirthStorage] = useState<MatchingStorageStatus | null>(null);
+  const [analysisStorage, setAnalysisStorage] = useState<MatchingStorageStatus | null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || matchingBusy || !configuration.configured) return;
     const values = new FormData(event.currentTarget);
-    setError(''); setAuthRequired(false); setResult(null); setSubmittedInput(null); setMatchingResult(null); setMatchingError('');
+    setError(''); setAuthRequired(false); setResult(null); setSubmittedInput(null); setMatchingResult(null); setMatchingError(''); setBirthStorage(null); setAnalysisStorage(null);
     if (isHrum && values.get('providerSex') === 'unspecified') {
       setError('HRUM 계산에는 성별 옵션이 필요해요. 계산용 성별을 선택해 주세요.'); return;
     }
@@ -44,6 +58,7 @@ export function FortuneForm({ configuration }: { configuration: Configuration })
       calendar, isLeapMonth: calendar === 'lunar' && values.get('isLeapMonth') === 'on',
       timezone: values.get('timezone'), providerSex: values.get('providerSex'), consent: values.get('consent') === 'on',
       ...(isHrum && values.get('externalProviderConsent') === 'on' ? { externalProviderConsent: 'hrum_birth_data_v1' } : {}),
+      ...(values.get('matchingStorageConsent') === 'on' ? { matchingStorageConsent: MATCHING_STORAGE_CONSENT_VERSION } : {}),
     });
     if (!parsed.success) { setError(parsed.error.issues[0]?.message ?? '입력 내용을 다시 확인해 주세요.'); return; }
     setBusy(true);
@@ -52,6 +67,7 @@ export function FortuneForm({ configuration }: { configuration: Configuration })
       const data = await response.json();
       if (data.status === 'ready' || data.status === 'not_ready' || data.status === 'error') {
         setResult(data as FortuneResult);
+        setBirthStorage(readStorageStatus(data.matchingStorage));
         if (response.ok && data.status === 'ready') setSubmittedInput(parsed.data);
       } else { setAuthRequired(response.status === 401); setError(data.error?.message ?? '결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); }
     } catch { setError('서버에 연결할 수 없어요. 입력 내용을 확인한 뒤 다시 시도해 주세요.'); }
@@ -60,11 +76,11 @@ export function FortuneForm({ configuration }: { configuration: Configuration })
 
   async function prepareMatchingBasis() {
     if (!submittedInput || matchingBusy || busy) return;
-    setMatchingBusy(true); setMatchingResult(null); setMatchingError('');
+    setMatchingBusy(true); setMatchingResult(null); setMatchingError(''); setAnalysisStorage(null);
     try {
       const response = await fetch('/api/fortune/matching-basis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submittedInput) });
       const data = await response.json();
-      if (data.status === 'ready' || data.status === 'not_ready') setMatchingResult(data as MatchingFortuneInput);
+      if (data.status === 'ready' || data.status === 'not_ready') { setMatchingResult(data as MatchingFortuneInput); setAnalysisStorage(readStorageStatus(data.analysisStorage)); }
       else setMatchingError(data.error?.message ?? '3주 분석을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } catch { setMatchingError('서버에 연결할 수 없어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'); }
     finally { setMatchingBusy(false); }
@@ -79,16 +95,17 @@ export function FortuneForm({ configuration }: { configuration: Configuration })
     <div className="checkbox-row">{calendar === 'lunar' ? <label className="check-label"><input type="checkbox" name="isLeapMonth" />윤달이에요</label> : <span />}<label className="check-label"><input type="checkbox" checked={unknownTime} onChange={(event) => setUnknownTime(event.target.checked)} />태어난 시간을 몰라요</label></div>
     <p className="field-hint time-note">시간을 몰라도 괜찮아요. 임의의 시간을 넣지 않고 년·월·일 3주로 구분해요.</p>
     <div className="field-row"><div className="field"><label htmlFor="timezone">출생지 시간대</label><input id="timezone" name="timezone" defaultValue="Asia/Seoul" required maxLength={64} /><span className="field-hint">한국은 Asia/Seoul이에요.</span></div><div className="field"><label htmlFor="providerSex">사주 계산용 성별 옵션{isHrum ? ' (필수)' : ''}</label><select id="providerSex" name="providerSex" defaultValue="unspecified"><option value="unspecified">선택하지 않음</option><option value="female">여성</option><option value="male">남성</option></select><span className="field-hint">{isHrum ? 'HRUM 계산에 필요하며, ' : ''}만나고 싶은 상대 조건과는 별개예요.</span></div></div>
-    <div className="consent-box"><label className="check-label"><input type="checkbox" name="consent" required /><span>입력한 정보를 이번 사주 결과 요청에 사용하는 데 동의해요.</span></label><p>{isHrum ? '입력 원본과 결과는 우리 서비스 DB에 저장하지 않아요. 계산 결과는 서버 메모리에 최대 5분 임시 보관하고, 이 화면의 입력은 브라우저 저장소에 저장하지 않아요.' : '개발용 고정 샘플을 사용해요. 입력 원본과 결과는 우리 서비스 DB에 저장하지 않으며, 결과는 서버 메모리에 최대 5분 임시 보관해요.'}</p></div>
+    <div className="consent-box"><label className="check-label"><input type="checkbox" name="consent" required /><span>입력한 정보를 이번 사주 결과 요청에 사용하는 데 동의해요.</span></label><p>{isHrum ? '사주 풀이 결과는 DB에 저장하지 않고 서버 메모리에 최대 5분 임시 보관해요. 이 화면의 입력은 브라우저 저장소에 저장하지 않아요.' : '개발용 고정 샘플을 사용해요. 사주 풀이 결과는 DB에 저장하지 않고 서버 메모리에 최대 5분 임시 보관해요.'}</p></div>
+    <div className="consent-box matching-storage-consent"><label className="check-label"><input type="checkbox" name="matchingStorageConsent" /><span>(선택) 추천을 받기 위해 생년월일·양력/음력·윤달·출생지 시간대를 우리 서비스 DB에 저장하는 데 동의해요.</span></label><p>출생 시간과 계산용 성별은 저장하지 않아요. 저장한 생년월일은 프로필의 문과·이과와 함께 고정 추천 숫자를 만드는 데만 쓰여요.{isHrum ? ' 아래 3주 분석을 준비하면 그 분석 결과도 함께 저장해요.' : ''} 동의하지 않으면 사주 결과만 볼 수 있고 추천은 받을 수 없어요.</p></div>
     {isHrum ? <div className="consent-box external-consent"><label className="check-label"><input type="checkbox" name="externalProviderConsent" required /><span>HRUM에 생년월일·출생시간(알고 있는 경우)·양음력 및 윤달·시간대·계산용 성별을 전송하는 데 동의해요.</span></label><p>사주 계산을 위해 외부 공급자 HRUM으로 전송돼요. 아래의 3주 분석 준비를 선택하면 같은 출생 정보에서 시간을 제외해 한 번 더 전송할 수 있어요. 동의하지 않으면 실제 계산을 이용할 수 없고, 고정 샘플은 볼 수 있어요.</p><a className="text-link privacy-link" href="https://hrum.ai/privacy.html" target="_blank" rel="noreferrer">HRUM 개인정보 처리방침 확인 ↗</a></div> : null}
     {error ? <div className="feedback error" role="alert"><p>{error}</p>{authRequired ? <Link className="text-link" href="/login">학교 이메일로 로그인하기 →</Link> : null}</div> : null}
     <button className="button primary full-width" type="submit" disabled={busy || matchingBusy || !configuration.configured}>{busy ? '결과를 준비하고 있어요…' : '나의 사주 결과 보기'}<span aria-hidden="true">↗</span></button>
     <p className="microcopy">{isHrum ? '로그인 후 이용할 수 있어요. 사주 결과는 궁합 점수나 실제 추천 결과가 아니에요.' : '개발용 mock 결과는 샘플로 표시돼요. 실제 사주 분석이 아니에요.'}</p>
-  </form>{result ? <div className="fortune-result-space" aria-live="polite"><FortuneResultView result={result} /></div> : null}
+  </form>{result ? <div className="fortune-result-space" aria-live="polite"><FortuneResultView result={result} /><BirthStorageNotice status={birthStorage} /></div> : null}
   {isHrum && result?.status === 'ready' && result.source === 'provider' && submittedInput ? <section className="matching-basis-panel">
     <span className="pill">추천 입력 준비 · 궁합 계산 아님</span><h2>모두 같은 3주 기준으로 준비해요</h2><p>추천 비교에는 생시를 제외한 년·월·일 분석이 필요해요. 위의 개인 사주 결과와 별도로 준비하며, 버튼을 누를 때만 HRUM에 요청해요.</p><p className="field-hint">이 버튼은 직전에 계산한 입력을 사용해요. 입력을 바꿨다면 먼저 사주 결과를 다시 계산해 주세요.</p>
     <button className="button secondary" type="button" onClick={prepareMatchingBasis} disabled={matchingBusy || busy || matchingResult?.status === 'ready'}>{matchingBusy ? '3주 분석을 준비하고 있어요…' : matchingResult?.status === 'ready' ? '3주 입력 준비됨' : '추천에 사용할 3주 분석 준비'}</button>
     {matchingError ? <p className="feedback error" role="alert">{matchingError}</p> : null}
-    <div aria-live="polite">{matchingResult?.status === 'not_ready' ? <div className="feedback error"><p>{matchingNotReadyMessage(matchingResult)}</p><p>추천 입력이 준비되지 않았어요. 궁합 점수를 임의로 만들지 않아요.</p></div> : null}{matchingResult?.status === 'ready' ? <><div className="feedback success"><p>3주 기준 입력이 준비됐어요. 실제 추천이나 궁합 계산이 완료된 것은 아니에요.</p></div><FortuneAnalysisView analysis={matchingResult.analysis} basis="three_pillars" /></> : null}</div>
+    <div aria-live="polite">{matchingResult?.status === 'not_ready' ? <div className="feedback error"><p>{matchingNotReadyMessage(matchingResult)}</p><p>추천 입력이 준비되지 않았어요. 궁합 점수를 임의로 만들지 않아요.</p></div> : null}{matchingResult?.status === 'ready' ? <><div className="feedback success"><p>3주 기준 입력이 준비됐어요. 실제 추천이나 궁합 계산이 완료된 것은 아니에요.</p>{analysisStorage === 'stored' ? <p>3주 분석 결과도 저장했어요.</p> : analysisStorage === 'failed' || analysisStorage === 'unavailable' ? <p>3주 분석 결과는 저장하지 못했어요. 추천 이용에는 영향이 없어요.</p> : null}</div><FortuneAnalysisView analysis={matchingResult.analysis} basis="three_pillars" /></> : null}</div>
   </section> : null}</>;
 }
