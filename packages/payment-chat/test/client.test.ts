@@ -37,11 +37,9 @@ test("JSON이 아닌 오류 응답도 예측 가능한 오류로 처리한다", 
   await assert.rejects(client.conversations(),(error:unknown)=>error instanceof PaymentChatClientError && error.code==="INVALID_RESPONSE" && error.status===502);
 });
 
-test("화면 이탈 시 취소 신호를 fetch에 그대로 전달한다", async () => {
+test("이미 취소된 화면의 요청은 fetch를 호출하지 않는다", async () => {
   const controller=new AbortController(); controller.abort();
-  const client=createBrowserClient(async (_url,init)=>{
-    assert.equal(init?.signal,controller.signal);
-    init?.signal?.throwIfAborted();
+  const client=createBrowserClient(async ()=>{
     throw new Error("unreachable");
   });
   await assert.rejects(client.requests(undefined,controller.signal),{name:"AbortError"});

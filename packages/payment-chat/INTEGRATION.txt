@@ -1,3 +1,11 @@
+최신 C API 호출 변경 (2026-11-23)
+- client.ts는 기본 15초 내 응답(헤더/JSON 포함)을 받지 못하면 REQUEST_TIMEOUT/408을 반환한다.
+- 타임아웃은 서버의 처리 실패를 뜻하지 않으며 POST를 자동 재시도하지 않는다.
+- 호출자 AbortSignal, 기존 API 인자 및 첫 fetch 주입 인자는 호환된다.
+- C_REQUEST_TIMEOUT_2026-11-23.txt와 C_MESSAGE_IDEMPOTENCY_2026-11-23.txt를 확인한다(docs/).
+- 실제 Supabase 임시 계정 검증은 완료했으며 A/B 사주 저장·학교 메일 수신·Groble는 별도 대기다.
+- 아래는 이전 시점 기록이다.
+
 최신 통합 결과 (2026-11-23)
 - A Next.js 앱과 C 결제·요청·채팅 화면/API를 C 브랜치에서 연결했다.
 - 기존 C 상태 모듈/pg 어댑터와 A 학교 인증을 재사용한다. 실제 Groble 결제는 미연결이다.

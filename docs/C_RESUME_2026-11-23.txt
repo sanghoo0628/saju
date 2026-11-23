@@ -1,3 +1,11 @@
+최신 C 작업: API 응답 지연 복구 (2026-11-23)
+- C_REQUEST_TIMEOUT_2026-11-23.txt를 먼저 확인한다.
+- C 브라우저 API의 헤더/본문 읽기 전체에 기본 15초 제한을 적용했다.
+- POST 자동 재시도는 하지 않고 화면의 수동 재확인·재전송을 사용한다.
+- 로컬 기본 390개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- 네이티브 PostgreSQL 12개와 앱 CI 최종 결과는 위 문서에 기록한다.
+- 아래는 이전 작업 기록이다.
+
 최신 C 작업: 채팅 재전송 중복 방지 (2026-11-23)
 - C_MESSAGE_IDEMPOTENCY_2026-11-23.txt를 먼저 확인한다.
 - 기본 376개 및 HTTP 20개, lint/typecheck/Next/Vite 빌드 통과.
