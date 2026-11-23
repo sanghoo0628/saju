@@ -228,3 +228,42 @@ it("makes a capped list visible to the user instead of implying all history was 
   const html = panel({ listHasMore: true });
   expect(html).toContain("목록이 많아 최근 내역부터 표시했어요");
 });
+
+describe("completed request history", () => {
+  it("keeps a declined outgoing request discoverable after leaving its detail", () => {
+    const html = panel({ currentUserId: PEER, selection: null, requests: [{ ...request, status: "rejected" }] });
+    expect(html).toContain("이전 대화 요청");
+    expect(html).toContain("보낸 요청");
+    expect(html).toContain("거절됨");
+    expect(html).not.toContain("수락을 기다리고 있어요");
+    expect(html).not.toContain("500원");
+  });
+  it("shows incoming rejection history without an accept or payment action", () => {
+    const html = panel({ selection: null, requests: [{ ...request, status: "rejected" }] });
+    expect(html).toContain("받은 요청");
+    expect(html).toContain("거절함");
+    expect(html).not.toContain("수락하고 대화하기");
+    expect(html).not.toContain("500원");
+  });
+  it("offers free continuation for accepted history with an existing room", () => {
+    const html = panel({ selection: null, requests: [{ ...request, status: "accepted" }] });
+    expect(html).toContain("수락됨");
+    expect(html).toContain("대화 이어가기 · 무료");
+    expect(html).not.toContain("500원");
+  });
+  it("does not promise a room when an accepted request has not resolved to one", () => {
+    const html = panel({ rooms: [], selection: null, requests: [{ ...request, status: "accepted" }] });
+    expect(html).toContain("수락됨");
+    expect(html).not.toContain("대화 이어가기 · 무료");
+  });
+  it("does not expose another account's completed requests", () => {
+    const html = panel({ currentUserId: OTHER, requests: [{ ...request, status: "rejected" }] });
+    expect(html).not.toContain("이전 대화 요청");
+    expect(html).not.toContain("실제 공개 별명");
+  });
+  it("does not duplicate a pending request in completed history", () => {
+    const html = panel({ selection: null });
+    expect(html).toContain("새로운 대화 요청이 왔어요");
+    expect(html).not.toContain("이전 대화 요청");
+  });
+});

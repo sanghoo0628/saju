@@ -457,6 +457,10 @@ export function ChatPanel({
     (r) => r.from === currentUserId || r.to === currentUserId,
   );
   const pending = requests.filter((r) => r.status === "pending");
+  const completed = requests.filter((r) => r.status === "accepted" || r.status === "rejected");
+  const roomsByPeer = new Map(rooms.map((item) => [
+    item.members.find((id) => id !== currentUserId), item,
+  ]));
   const room =
     selection?.kind === "room"
       ? rooms.find((r) => r.id === selection.id)
@@ -534,6 +538,35 @@ export function ChatPanel({
             </button>
           );
         })}
+        {completed.length ? (
+          <details className="request-history">
+            <summary>이전 대화 요청 <span>{completed.length}</span></summary>
+            {completed.map((request) => {
+              const incoming = request.to === currentUserId;
+              const peerId = incoming ? request.from : request.to;
+              const peer = profiles.find((profile) => profile.userId === peerId);
+              const existingRoom = request.status === "accepted" ? roomsByPeer.get(peerId) : undefined;
+              const status = request.status === "accepted" ? "수락됨"
+                : incoming ? "거절함" : "거절됨";
+              return <button
+                key={request.id}
+                type="button"
+                className={`conversation-item ${selection?.kind === "request" && selection.id === request.id ? "active" : ""}`}
+                onClick={() => onSelect(existingRoom
+                  ? { kind: "room", id: existingRoom.id }
+                  : { kind: "request", id: request.id })}
+              >
+                <Avatar name={peer?.nickname ?? "?"} tone={peer?.tone} small />
+                <span>
+                  <strong>{peer?.nickname ?? "알 수 없는 사용자"}</strong>
+                  <small>{incoming ? "받은 요청" : "보낸 요청"} · {status}</small>
+                  {existingRoom ? <small>대화 이어가기 · 무료</small> : null}
+                </span>
+                <Icon name="arrow" size={15} />
+              </button>;
+            })}
+          </details>
+        ) : null}
         <div className="list-section-label">이어가는 인연</div>
         {rooms.length ? (
           rooms.map((item) => {
