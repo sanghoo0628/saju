@@ -36,7 +36,13 @@ polling·Realtime·서버 메시지/API/인증/차단 동작은 변경하지 않
 검증 범위
 ESLint, 타입 검사, Vite 데모 빌드 통과.
 전체 기본 390개(B/DB 114 + C 161 + A 97 + UI 18), Next 빌드·HTTP 20개 모두 통과했다.
-네이티브 PostgreSQL 12개와 앱 CI 결과도 최종 실행 후 기록한다.
+최종 코드 커밋: 51a092691db4af8a7c7d97e13068808359b2e1f7
+GitHub Actions: https://github.com/sanghoo0628/saju/actions/runs/45129233593
+전체 conclusion=success. App, API and UI / Native PostgreSQL concurrency 모두 성공.
+기본 390개 + native PostgreSQL 12개 = 자동 테스트 402개 통과. HTTP 20개도 통과.
+ESLint, 타입 검사, Next/Vite build 모두 통과했다.
+결과를 기록하는 후속 문서 커밋은 CI paths-ignore에 따라 다시 실행하지 않는다.
+이번에 띄운 별도 데모·프록시 서버는 종료했다.
 UI 스크롤은 위 실제 브라우저 시나리오로 확인했고 이를 흉내 낸 정적 테스트는 추가하지 않았다.
 
 격리 및 남은 연결
