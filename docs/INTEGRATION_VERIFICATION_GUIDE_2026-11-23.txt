@@ -1,0 +1,59 @@
+A 합류 후 전체 흐름 검증 준비
+2026-11-23 / C 브랜치
+
+1. A 코드가 오면
+- A 브랜치와 커밋 해시를 기록하고 최신 C에 통합한다. main은 수정하지 않는다.
+- 저장 동의 필드 이름/strict 스키마, 저장 호출 위치, 개인정보 표시 문구를 계약서 9장과 대조한다.
+- 기능을 합친 뒤 깨끗한 작업 트리에서 자동 검사를 실행하고 그 커밋을 기록한다.
+- 본인 학교 메일의 실제 OTP 수신과 웹 화면의 단계 연결은 별도로 직접 확인한다.
+
+2. 준비/실행 명령 (Node 24.22.1+ <25, pnpm 11.25.0)
+계획만 생성:
+  pnpm verify:integration
+자동 검사 실행:
+  pnpm verify:integration --run
+네이티브 PostgreSQL까지 포함 (실행 가능한 Linux/개발 환경):
+  pnpm verify:integration --run --postgres
+도구 자체 검사:
+  pnpm test:integration-tools
+
+기본 명령은 검사항목을 실행하지 않고 Git 정보 조회와 계획·수동 체크리스트 파일 생성만 한다.
+--run은 lint → 타입 검사 → 전체 테스트 → Next build → Vite build → HTTP 20개를 순서대로 실행한다.
+--postgres를 붙이면 native 다중 연결 검사도 포함한다. 로컬 Codex의 IPC 제한이 있으면 CI 결과를 사용한다.
+어느 단계든 실패하면 뒤 단계를 실행하지 않는다. 자동 재시도는 없다.
+각 단계 제한 시간이 있고 Ctrl+C/SIGTERM 시 시작한 프로세스 그룹만 정리한다.
+macOS 실제 실행과 Linux CI 회귀를 확인하며 Windows 프로세스 트리 정리를 검증한 것은 아니다.
+
+3. 격리와 결과
+도구는 .env.example의 키 이름을 읽어 앱 연결값을 자식 프로세스에서 비운다.
+추가로 Supabase/DB/사주/Groble 및 live QA 변수도 비운 뒤 mock·개발 설정과 결제 비활성으로 검사한다.
+실제 .env.local을 도구에서 읽거나 수정하지 않는다. Next의 환경 파일보다 자식 프로세스의 빈 연결값이 우선한다.
+테스트는 임시 DB와 loopback HTTP를 사용한다. 공유 DB·실제 메일·HRUM·PG 검사는 선택하지 않는다.
+Node 모드는 테스트 단계 test, 빌드·HTTP 단계 production이며 앱 APP_ENV는 development다.
+
+결과 위치:
+  test-results/integration/<실행별 고유 폴더>/report.json
+  test-results/integration/<실행별 고유 폴더>/manual-checklist.txt
+  같은 폴더의 단계별 .log
+폴더/파일은 별도 권한으로 생성하고 Git에서 제외한다. 과거 결과를 덮어쓰지 않는다.
+report.json에는 Git revision과 작업 트리 변경 여부를 기록한다. 변경된 트리 결과를 깨끗한 커밋 검증으로 해석하지 않는다.
+Git 정보를 확인할 수 없으면 null이며 임의 커밋을 만들어 기록하지 않는다.
+
+selectedChecksPassed=true는 이번에 선택한 자동 검사만 통과했다는 뜻이다.
+fullUserFlowVerified는 false로 남는다. 수동 항목과 정책 항목을 자동으로 완료 처리하지 않는다.
+기본 실행에서 native PostgreSQL은 requires_postgres_flag로 미실행임을 표시한다.
+기존의 9개 실제 Supabase 채팅 검증은 당시 기록이며 이번 준비 도구의 실행 결과로 합산하지 않는다.
+
+4. 수동 검증 준비
+- INTEGRATION_ACCEPTANCE_CHECKLIST_2026-11-23.txt 또는 실행 폴더의 체크리스트를 사용한다.
+- 격리된 테스트 계정 A(요청자), B(수신자), E(제3자)를 준비한다. 프로필/생일은 합성 데이터로 만든다.
+- 학교 메일 수신은 승인된 실제 테스트 메일로 확인한다. OTP·쿠키·키·생년월일 원문을 결과 파일에 기록하지 않는다.
+- 신규 상태 검사는 별도의 새 테스트 계정으로 한다. 기존 저장값을 삭제해 흉내 내지 않는다.
+- 후보 수 0/1~2/3명, 비공개/차단, 점수 고정은 격리 DB에서 검증한다. 공유 추천 풀을 초기화하지 않는다.
+- C 요청/채팅의 테스트 권한은 격리 fixture 또는 별도 opt-in live QA 절차를 사용한다. 실제 주문을 임의로 fulfilled로 바꾸지 않는다.
+- 실제 학교 메일, A 저장 동의와 저장, profile_required 안내, 프로필 저장, 무료 추천을 차례로 확인한다.
+- 실제 PG는 공식 규격·테스트 환경이 준비된 뒤 P01을 수행한다. 현재 데모 결제는 그 증거가 아니다.
+
+5. 팀 정책
+INTEGRATION_POLICY_DECISIONS_2026-11-23.txt의 두 항목은 미정이다.
+거절 후 환불/환불 후 채팅을 이번 도구가 임의로 선택하거나 구현하지 않는다.

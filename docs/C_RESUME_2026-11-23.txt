@@ -1,3 +1,11 @@
+최신: A 합류 후 통합 검증 도구·체크리스트 준비 (2026-11-23)
+- C_INTEGRATION_TOOLS_2026-11-23.txt와 INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt를 먼저 확인한다.
+- pnpm verify:integration으로 계획, --run으로 격리 자동 검사, --postgres로 native 검사를 선택한다.
+- 직접 확인할 17개 시나리오와 팀 정책 2개를 정리했다. 자동 검사 통과로 수동 확인을 완료 처리하지 않는다.
+- 기본 452개 + HTTP20, lint/typecheck/build 및 실행 도구의 6단계 실제 실행 통과.
+- native12와 최종 CI는 위 문서에 기록한다. 공유 DB·main 변경은 없다.
+- 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
 최신: B 후속 CLI 설정·테스트 hook 통합 (2026-11-23)
 - C_B_FOLLOWUPS_2026-11-23.txt를 먼저 확인한다.
 - B rebase 후 기능 tree가 C와 동일함을 확인하고 84fc5d3/ae3beb5만 반영했다.

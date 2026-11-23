@@ -43,7 +43,7 @@ CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS �
 ## 검사
 
 ```bash
-pnpm test        # B/DB+연동 150, C 167, A 97, UI 24 = 438
+pnpm test        # B/DB 150, C 167, A 97, UI 24, 통합 도구 14 = 452
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -56,7 +56,7 @@ pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 12개
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
 네이티브 PostgreSQL 검사 12개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45152189892)에서 모두 통과했습니다.
-로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 438개에 포함되지 않습니다.
+로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 452개에 포함되지 않습니다.
 
 C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
 문서만 바뀐 커밋은 제외합니다. 실제 Supabase/사주/결제 키는 CI에 필요하지 않습니다.
@@ -78,6 +78,18 @@ C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이
 [B 프로필 통합 및 개발 DB 읽기 전용 확인](docs/C_B_PROFILE_INTEGRATION_2026-11-23.txt)에 최신 검증과 재실행 명령을 정리했습니다.
 
 [B CLI·테스트 후속 변경](docs/C_B_FOLLOWUPS_2026-11-23.txt)과 [Supabase 로컬 설정 안내](supabase/README.md)도 반영했습니다.
+
+## A 합류 후 통합 검사 준비
+
+```bash
+pnpm verify:integration          # 계획·수동 체크리스트 생성
+pnpm verify:integration --run    # 외부 서비스 키를 비운 자동 검사 실행
+pnpm verify:integration --run --postgres # native PostgreSQL도 포함
+```
+
+결과·단계별 로그는 Git에서 제외되는 `test-results/integration/<실행 폴더>/`에 남습니다.
+자동 검사 통과와 실제 학교 메일·사주 저장·PG 검증 결과는 별도로 기록합니다.
+[실행 안내](docs/INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt), [수동 체크리스트](docs/INTEGRATION_ACCEPTANCE_CHECKLIST_2026-11-23.txt), [팀 정책 결정표](docs/INTEGRATION_POLICY_DECISIONS_2026-11-23.txt)를 참고하세요.
 
 ## 독립 C 화면 데모
 

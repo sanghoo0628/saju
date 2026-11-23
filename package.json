@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "pnpm test:b && pnpm test:payments && pnpm test:a && pnpm test:ui",
+    "test": "pnpm test:b && pnpm test:payments && pnpm test:a && pnpm test:ui && pnpm test:integration-tools",
     "test:a": "node --conditions=react-server --import tsx --test tests/a/*.test.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm demo:build",
     "test:http": "node --import tsx scripts/smoke-http.ts",
@@ -26,7 +26,9 @@
     "demo:build": "pnpm --filter @saju/payment-chat-ui build",
     "test:http:local": "node scripts/check-http-local.mjs",
     "test:supabase:chat": "node --env-file=.env.local --import tsx scripts/verify-supabase-chat.ts",
-    "verify:supabase:readonly": "node --env-file=.env.local --import tsx scripts/verify-supabase-readonly.ts"
+    "verify:supabase:readonly": "node --env-file=.env.local --import tsx scripts/verify-supabase-readonly.ts",
+    "test:integration-tools": "node --test scripts/test/*.test.ts",
+    "verify:integration": "node scripts/verify-integration.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
