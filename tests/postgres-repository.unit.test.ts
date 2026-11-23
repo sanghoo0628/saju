@@ -80,7 +80,7 @@ describe("PostgreSQL transaction lifecycle", () => {
       expect(second.query).toHaveBeenLastCalledWith("COMMIT");
     },
   );
-  it("retries only recognized unique races, not arbitrary unique constraints", async () => {
+  it.each(["orders_active_pair_uniq", "messages_pkey"])("retries recognized %s races, not arbitrary unique constraints", async (constraint) => {
     const first = client(),
       second = client(),
       p = pool([first, second]);
@@ -88,7 +88,7 @@ describe("PostgreSQL transaction lifecycle", () => {
     await createPostgresRepository(p, { retryDelayMs: 0 }).transaction(
       async () => {
         if (++calls === 1)
-          throw { code: "23505", constraint: "orders_active_pair_uniq" };
+          throw { code: "23505", constraint };
       },
     );
     expect(calls).toBe(2);

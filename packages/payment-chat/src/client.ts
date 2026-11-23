@@ -42,7 +42,7 @@ export function createBrowserClient(fetcher: typeof fetch = fetch) {
     acceptChat: (requestId: string, signal?: AbortSignal) => call<{conversationId:string}>(`/api/chat-requests/${segment(requestId)}/accept`,{},signal),
     rejectChat: (requestId: string, signal?: AbortSignal) => call<ChatRequestResponse>(`/api/chat-requests/${segment(requestId)}/reject`,{},signal),
     conversations: (afterId?: string, signal?: AbortSignal) => call<ConversationResponse[]>(`/api/conversations${after(afterId)}`,undefined,signal),
-    sendMessage: (conversationId: string, body: string, signal?: AbortSignal) => call<ChatMessage>(`/api/conversations/${segment(conversationId)}/messages`,{body},signal),
+    sendMessage: (conversationId: string, body: string, signal?: AbortSignal, clientMessageId?: string) => call<ChatMessage>(`/api/conversations/${segment(conversationId)}/messages`,{body,...(clientMessageId === undefined ? {} : {clientMessageId})},signal),
     messages: (conversationId: string, afterId?: string, signal?: AbortSignal) => call<ChatMessage[]>(`/api/conversations/${segment(conversationId)}/messages${after(afterId)}`,undefined,signal),
   };
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MATCH_PRICE_KRW } from "../../../contracts/payment-chat.ts";
+import { MATCH_PRICE_KRW, isClientMessageId } from "../../../contracts/payment-chat.ts";
 import type { ApiErrorResponse, ChatMessage, CreateOrderResponse } from "../../../contracts/payment-chat.ts";
 import type { Actor, Order, PaymentGateway, Repository, Transaction } from "./ports.ts";
 
@@ -156,13 +156,24 @@ export function createService(deps: {
       });
     },
 
-    async sendMessage(actor: Actor, conversationId: string, body: string) {
+    async sendMessage(actor: Actor, conversationId: string, body: string, clientMessageId?: string) {
       const userId = requireActor(actor);
       if (typeof body !== "string" || !body.trim() || body.length > 2000)
         invalid("메시지는 1~2000자로 입력해주세요.");
+      if (clientMessageId !== undefined && !isClientMessageId(clientMessageId))
+        invalid("올바른 메시지 전송 식별자가 필요합니다.");
       return repository.transaction(async tx => {
+        // A replay never skips current participation or blocking checks.
         await participant(tx, conversationId, userId);
-        const message: ChatMessage = { id: id(), conversationId, senderId: userId, body: body.trim(), createdAt: now() };
+        if (clientMessageId) {
+          const existing = await tx.message(clientMessageId);
+          if (existing) {
+            if (existing.senderId !== userId || existing.conversationId !== conversationId || existing.body !== body.trim())
+              invalid("이미 사용된 메시지 전송 식별자입니다.");
+            return existing;
+          }
+        }
+        const message: ChatMessage = { id: clientMessageId ?? id(), conversationId, senderId: userId, body: body.trim(), createdAt: now() };
         await tx.saveMessage(message);
         return message;
       });

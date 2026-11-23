@@ -20,6 +20,7 @@ const RACE_CONSTRAINTS = new Set([
   "conversations_user_a_user_b_key",
   "payments_pkey",
   "payments_order_id_key",
+  "messages_pkey",
 ]);
 function retryable(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;

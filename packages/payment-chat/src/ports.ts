@@ -61,6 +61,8 @@ export interface Transaction {
   /** 본인이 참여한 방만, 차단 제외 후 최신순 100개. 커서 소유권도 검증한다. */
   conversationsForUser(userId: string, afterId?: string): Promise<Conversation[]>;
   saveConversation(conversation: Conversation): Promise<void>;
+  /** Internal lookup only; service checks the actor, room and exact body before returning a replay. */
+  message(id: string): Promise<ChatMessage | undefined>;
   saveMessage(message: ChatMessage): Promise<void>;
   /** afterId가 해당 대화에 속하는지 검증하고 시각과 ID로 정렬하여 최대 100개를 반환한다. */
   messages(conversationId: string, afterId?: string): Promise<ChatMessage[]>;

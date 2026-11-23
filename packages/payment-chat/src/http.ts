@@ -59,7 +59,7 @@ async function bodyBytes(request: Request, max: number): Promise<Uint8Array> {
   for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
   return result;
 }
-async function objectBody(request: Request, fields: string[], optionalEmpty = false): Promise<Record<string,unknown>> {
+async function objectBody(request: Request, fields: string[], optionalEmpty = false, optionalFields: string[] = []): Promise<Record<string,unknown>> {
   const bytes = await bodyBytes(request, JSON_LIMIT);
   if (optionalEmpty && bytes.byteLength === 0) return {};
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json")
@@ -69,7 +69,7 @@ async function objectBody(request: Request, fields: string[], optionalEmpty = fa
   catch { fail("INVALID_REQUEST", "올바른 JSON 본문이 필요합니다."); }
   if (body === null || Array.isArray(body) || typeof body !== "object")
     fail("INVALID_REQUEST", "JSON 객체가 필요합니다.");
-  if (Object.keys(body).some(key => !fields.includes(key)) || fields.some(key => !Object.hasOwn(body, key)))
+  if (Object.keys(body).some(key => !fields.includes(key) && !optionalFields.includes(key)) || fields.some(key => !Object.hasOwn(body, key)))
     fail("INVALID_REQUEST", "요청 필드가 올바르지 않습니다.");
   return body as Record<string,unknown>;
 }
@@ -135,9 +135,12 @@ export function createHttpApi(deps: {
         if (request.method === "GET") {
           return json(await deps.service.messages(actor, roomId, afterCursor(url)));
         }
-        const body = await objectBody(request, ["body"]);
+        const body = await objectBody(request, ["body"], false, ["clientMessageId"]);
         if (typeof body.body !== "string") fail("INVALID_REQUEST", "문자열 메시지가 필요합니다.");
-        return json(await deps.service.sendMessage(actor, roomId, body.body));
+        const clientMessageId = body.clientMessageId;
+        if (clientMessageId !== undefined && typeof clientMessageId !== 'string')
+          fail('INVALID_REQUEST', '올바른 메시지 전송 식별자가 필요합니다.');
+        return json(await deps.service.sendMessage(actor, roomId, body.body, clientMessageId));
       }
       return json({code:"NOT_FOUND",message:"API를 찾을 수 없습니다."},404);
     } catch (error) {

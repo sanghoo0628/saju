@@ -6,7 +6,8 @@ import type {
   ChatRequestResponse,
   ConversationResponse,
 } from "../../../contracts/payment-chat.ts";
-import { createBrowserClient } from "../../payment-chat/src/client.ts";
+import { createBrowserClient, PaymentChatClientError } from "../../payment-chat/src/client.ts";
+import { createMessageSendTracker, PendingMessageError, type MessageSendAttempt } from '../../payment-chat/src/message-send-tracker.ts';
 import {
   createMessageSession,
   type MessageSession,
@@ -41,6 +42,8 @@ function Conversation({
   onReply?: (id: string) => Promise<ChatMessage>;
 }) {
   const sessionRef = useRef<MessageSession | null>(null);
+  const sendTracker = useRef<ReturnType<typeof createMessageSendTracker> | null>(null);
+  const [pendingSend, setPendingSend] = useState<MessageSendAttempt | null>(null);
   const [connection, setConnection] = useState(
     messageSource ? "connecting" : "polling",
   );
@@ -63,9 +66,20 @@ function Conversation({
   const roomId = room.id;
   const [memberA, memberB] = room.members;
   const roomCreatedAt = room.createdAt;
+  // Transport/source replacement must not turn an unresolved send into a new message.
+  // Conversation itself is keyed by user and room; Strict Mode gets a fresh tracker on setup.
+  useEffect(() => {
+    const tracker = createMessageSendTracker(currentUserId, roomId);
+    sendTracker.current = tracker;
+    return () => {
+      tracker.dispose();
+      if (sendTracker.current === tracker) sendTracker.current = null;
+    };
+  }, [currentUserId, roomId]);
   useEffect(() => {
     active.current = true;
     accessDenied.current = false;
+    const tracker = sendTracker.current!;
     const session = createMessageSession({
       userId: currentUserId,
       conversation: { id: roomId, members: [memberA, memberB], createdAt: roomCreatedAt },
@@ -80,6 +94,14 @@ function Conversation({
       setAccessError(state.accessError);
       setConnection(state.connection);
       accessDenied.current = !!state.accessError;
+      const pending = tracker.pending();
+      const delivered = pending && state.messages.find(message => message.id === pending.clientMessageId);
+      const confirmed = delivered && tracker.confirm(delivered);
+      if (confirmed) {
+        setPendingSend(null);
+        setSendError('');
+        setDraft(value => value.trim() === confirmed.body ? '' : value);
+      }
     });
     reload.current = () => {
       setLoading(true);
@@ -111,22 +133,31 @@ function Conversation({
   useEffect(() => {
     if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages.length]);
-  async function send() {
-    const body = draft.trim();
+  async function send(retry?: MessageSendAttempt) {
+    const body = retry?.body ?? draft.trim();
     if (!body || sendingRef.current || accessError || loading || historyError)
       return;
+    const session = sessionRef.current;
+    const tracker = sendTracker.current;
+    if (!session || !tracker) return;
+    let attempt: MessageSendAttempt;
+    try {
+      if (retry) {
+        const pending = tracker.pending();
+        if (!pending || pending.clientMessageId !== retry.clientMessageId) return;
+        attempt = pending;
+      } else attempt = tracker.prepare(body);
+    } catch (error) {
+      setSendError(error instanceof PendingMessageError ? error.message : '메시지 전송을 준비하지 못했어요. 다시 시도해주세요.');
+      return;
+    }
+    setPendingSend(attempt);
     sendingRef.current = true;
     setSending(true);
     setSendError("");
-    const session = sessionRef.current;
-    if (!session) {
-      sendingRef.current = false;
-      setSending(false);
-      return;
-    }
     const controller = (sendController.current = new AbortController());
     try {
-      const result = await api.sendMessage(room.id, body, controller.signal);
+      const result = await api.sendMessage(room.id, attempt.body, controller.signal, attempt.clientMessageId);
       if (
         !active.current ||
         controller.signal.aborted ||
@@ -134,14 +165,20 @@ function Conversation({
         sessionRef.current !== session
       )
         return;
+      if (!tracker.matches(attempt, result))
+        throw new PaymentChatClientError('INVALID_RESPONSE', '전송 결과를 확인할 수 없어요.', 502);
+      tracker.confirm(result);
       session.receive(result);
-      setDraft("");
+      setPendingSend(null);
+      setDraft(value => value.trim() === attempt.body ? '' : value);
     } catch (error) {
       if (active.current && !controller.signal.aborted) {
         if (sessionRef.current !== session) return;
         if (session.deny(error)) return;
+        // Realtime/history may already have confirmed a POST whose response was lost.
+        if (!tracker.pending()) return;
         setSendError(
-          "전송 여부를 확인하지 못했어요. 입력한 내용은 보관했어요. 중복 전송을 피하려면 대화 기록을 확인한 뒤 다시 보내주세요.",
+          "전송 응답을 확인하지 못했어요. 입력한 내용은 보관했어요. 이전 메시지는 중복 저장 없이 다시 보낼 수 있어요.",
         );
       }
     } finally {
@@ -247,6 +284,11 @@ function Conversation({
           >
             대화 기록 확인
           </button>
+          {pendingSend ? <button className="secondary" type="button"
+            disabled={sending || loading || !!historyError}
+            onClick={() => { void send(pendingSend); }}>
+            이전 메시지 다시 보내기
+          </button> : null}
         </div>
       ) : null}
       {replyError && !accessError ? (

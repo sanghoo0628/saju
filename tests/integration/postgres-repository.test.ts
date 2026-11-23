@@ -257,3 +257,23 @@ describe("native PostgreSQL: production pool + C service + B migrations", () => 
     ).rejects.toMatchObject({ code: "BLOCKED" });
   });
 });
+
+it('12 concurrent retries of a message produce one row with the production retry defaults', async () => {
+  const id=await room();const key=uid(8100);
+  const production=createService({repository:createPostgresRepository(db.pool,{retryDelayMs:0}),gateway});
+  const results=await Promise.all(Array.from({length:12},()=>production.sendMessage(actor,id,'one logical message',key)));
+  expect(results.every(value=>value.id===key&&value.createdAt===results[0]!.createdAt)).toBe(true);
+  expect((await db.pool.query('select count(*)::int n from messages where id=$1',[key])).rows[0].n).toBe(1);
+});
+it('different payloads racing for the same message UUID cannot overwrite each other', async () => {
+  const id=await room();const key=uid(8101);
+  const results=await Promise.allSettled([
+    service.sendMessage(actor,id,'first payload',key),service.sendMessage(actor,id,'second payload',key),
+  ]);
+  expect(results.filter(result=>result.status==='fulfilled')).toHaveLength(1);
+  const failure=results.find(result=>result.status==='rejected');
+  expect(failure?.status==='rejected'&&failure.reason.code).toBe('INVALID_REQUEST');
+  const rows=(await db.pool.query('select body from messages where id=$1',[key])).rows;
+  expect(rows).toHaveLength(1);
+  expect(['first payload','second payload']).toContain(rows[0].body);
+});

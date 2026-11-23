@@ -229,6 +229,10 @@ export function createPostgresTransaction(q: SqlExecutor): Transaction {
       );
       return (rows.rows as RoomRow[]).map(room);
     },
+    async message(id) {
+      const row = await one<MessageRow>('select * from public.messages where id=$1', [id]);
+      return row ? message(row) : undefined;
+    },
     async saveMessage(value) {
       await q.query(
         `insert into public.messages(id,conversation_id,sender_id,body,created_at) values($1,$2,$3,$4,$5)`,

@@ -138,3 +138,19 @@ describe("B SQL과 실제 C 서비스의 연결",()=>{
     await expect(t.asUser(ME,q=>q.query(`select target_score,distance from public.match_results`))).rejects.toThrow(/permission denied/);
   });
 });
+
+it('persists an idempotent message once and refuses conflicting replays with real SQL',async()=>{
+  const id=await room();const key=uid(8000);
+  const first=await service.sendMessage({userId:ME},id,'  one message  ',key);
+  expect(await service.sendMessage({userId:ME},id,'one message',key)).toEqual(first);
+  await expect(service.sendMessage({userId:ME},id,'different',key)).rejects.toMatchObject({code:'INVALID_REQUEST'});
+  await expect(service.sendMessage({userId:A},id,'one message',key)).rejects.toMatchObject({code:'INVALID_REQUEST'});
+  const rows=await t.db.query('select body from public.messages where id=$1',[key]);
+  expect(rows.rows).toEqual([{body:'one message'}]);
+});
+it('rechecks SQL-backed blocking before returning an existing message',async()=>{
+  const id=await room();const key=uid(8001);
+  await service.sendMessage({userId:ME},id,'one message',key);
+  await t.db.query('insert into public.blocks(blocker_id,blocked_id) values($1,$2)',[A,ME]);
+  await expect(service.sendMessage({userId:ME},id,'one message',key)).rejects.toMatchObject({code:'BLOCKED'});
+});

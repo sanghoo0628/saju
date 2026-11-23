@@ -127,6 +127,7 @@ export function createDemoStore() {
           saveConversation: async (value) => {
             put(draft.rooms, value);
           },
+          message: async id => draft.messages.find(message => message.id === id),
           saveMessage: async (value) => {
             draft.messages.push(value);
           },

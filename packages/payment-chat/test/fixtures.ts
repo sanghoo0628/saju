@@ -56,6 +56,7 @@ export function fixture() {
           conversationForPair: async (a,b) => draft.rooms.find(x => x.members.includes(a) && x.members.includes(b)),
           conversationsForUser: async (userId,afterId) => page(draft.rooms.filter(x=>x.members.includes(userId) && !draft.blocks.some(pair=>x.members.every(member=>pair.includes(member)))),afterId),
           saveConversation: async room => { put(draft.rooms, room); },
+          message: async id => draft.messages.find(message => message.id === id),
           saveMessage: async message => { draft.messages.push(message); },
           messages: async (roomId, afterId) => {
             const messages = draft.messages.filter(x => x.conversationId === roomId).sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
