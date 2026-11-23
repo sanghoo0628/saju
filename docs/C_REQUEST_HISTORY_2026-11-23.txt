@@ -41,6 +41,12 @@ ESLint, 타입 검사, Next 빌드, Vite 빌드, 로컬 HTTP 20개 통과.
 브라우저 생성 도구가 오래 지연됐지만 응답 후 나머지 시나리오는 정상 확인했다.
 
 CI 및 재개 기록
-네이티브 PostgreSQL 12개와 앱 CI는 C 브랜치 푸시 후 확인해 아래에 기록한다.
+코드 커밋: f7e590e5a706466fedb093478d3ab43c9f2ce96e
+GitHub Actions: https://github.com/sanghoo0628/saju/actions/runs/45133936967
+전체 conclusion=success. App, API and UI / Native PostgreSQL concurrency 모두 성공.
+기본 396개 + native PostgreSQL 12개 = 자동 테스트 408개 통과. HTTP 20개도 통과.
+ESLint, 타입 검사, Next/Vite 빌드 모두 통과했다.
+이 결과를 기록하는 후속 문서 커밋은 CI paths-ignore에 따라 다시 실행하지 않는다.
+이번 별도 데모·프록시 서버는 종료했다.
 main과 A/B 브랜치는 수정하지 않는다. 기존 4174 데모는 초기화/종료하지 않았다.
 A/B 사주 저장 연결·실제 학교 메일 수신·Groble 공식 연동은 기존 대기 항목이다.

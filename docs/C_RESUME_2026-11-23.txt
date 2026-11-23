@@ -2,7 +2,8 @@
 - C_REQUEST_HISTORY_2026-11-23.txt를 먼저 확인한다.
 - 거절·수락 이력을 다시 열 수 있고 기존 채팅방에는 무료로 즉시 연결한다.
 - 기본 396개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
-- 최종 native 12개/앱 CI 결과는 위 문서에 기록한다.
+- native 12개와 앱 CI 모두 성공(코드 f7e590e).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45133936967
 - DB/API/결제 정책 변경은 없다. 아래는 이전 기록이다.
 
 최신 C 작업: 채팅 읽기 위치 유지 (2026-11-23)
