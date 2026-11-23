@@ -26,3 +26,13 @@ CampusChat이 실제 photoUrl을 MatchProfilePhoto에 전달하도록 연결했�
 
 main 수정/병합 없이 codex/c-payment-chat 브랜치에서만 진행했다.
 그로블 실제 결제는 계속 외부 연결 대기 중이다.
+
+최종 CI
+코드: da30a695605b8f42893e45ff6b1195f2dbdd1750
+https://github.com/sanghoo0628/saju/actions/runs/45164656330
+App, API and UI / Native PostgreSQL concurrency 모두 success.
+기본480개 + native12 = 총492개, HTTP20, lint/typecheck/Next/Vite build 통과.
+
+수정 앱: http://127.0.0.1:4303/matches
+실행 폴더: /private/tmp/saju-c-photo-build-20261123
+실제 연결 환경은 원래 로컬 환경 파일에서만 읽었다. 사진 검증은 합성 파일을 사용했다.
