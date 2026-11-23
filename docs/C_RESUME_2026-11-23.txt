@@ -3,7 +3,9 @@
 - pnpm verify:integration으로 계획, --run으로 격리 자동 검사, --postgres로 native 검사를 선택한다.
 - 직접 확인할 17개 시나리오와 팀 정책 2개를 정리했다. 자동 검사 통과로 수동 확인을 완료 처리하지 않는다.
 - 기본 452개 + HTTP20, lint/typecheck/build 및 실행 도구의 6단계 실제 실행 통과.
-- native12와 최종 CI는 위 문서에 기록한다. 공유 DB·main 변경은 없다.
+- native12와 최종 앱 CI 통과(코드 2809c0e). 공유 DB/main에 쓰지 않았다.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45155219028
+- 원격 main은 외부 PR #1 병합으로 9fe80845가 됐다. 기존 A dd336a2이며 새 사주 저장 연결은 아니다.
 - 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
 
 최신: B 후속 CLI 설정·테스트 hook 통합 (2026-11-23)
