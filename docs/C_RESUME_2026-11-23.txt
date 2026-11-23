@@ -3,7 +3,8 @@
 - B d4d8eea를 C에 cherry-pick(5b68327), /profile 화면과 새 프로필 API 통합.
 - dev DB 마이그레이션 7개·권한·Realtime·C 읽기 SQL 확인, 공유 DB 쓰기 0회.
 - 기본 438개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
-- native 12개/앱 CI 최종 결과는 위 문서에 기록한다.
+- native 12개와 앱 CI 모두 통과했다(코드 68d13f4).
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45150958500
 - A 사주 입력 저장 동의/호출 연결과 실제 신규 가입 전체 흐름 검증은 남아 있다.
 - 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
 
