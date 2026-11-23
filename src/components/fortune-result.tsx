@@ -31,6 +31,6 @@ export function FortuneResultView({ result }: { result: FortuneResult }) {
     <div className="result-prose">{result.data.interpretation.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
     <FortuneAnalysisView analysis={result.data.analysis} basis={result.data.chartBasis} />
     <details className="result-details"><summary>결과를 읽기 전에 알아두세요</summary><ul>{result.data.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul><p>사주 정보는 연애 성공률이나 상대의 성격·안전성을 판정하지 않아요. 사주 풀이 결과는 DB에 저장하지 않고 서버 메모리에 최대 5분 임시 보관해요. 매칭용 저장에 동의한 경우에만 생년월일·달력·시간대를 저장해요.</p>{result.source === 'provider' ? <p>계산 기준: {result.data.calculation.dayBoundary === 'zi_hour_start' ? '23시부터 다음 날로 구분' : '자정부터 다음 날로 구분'} · 출생지 위치 보정 없음 · {result.data.calculation.timezone}</p> : null}</details>
-    <div className="result-next"><div><h3>이제, 나의 이야기를 소개해 볼까요?</h3><p>프로필 등록 기능은 준비 중이에요.</p></div><Link className="text-link" href="/profile">프로필 준비 상태 보기 →</Link></div>
+    <div className="result-next"><div><h3>이제, 나의 이야기를 소개해 볼까요?</h3><p>매칭용 정보 저장을 마치면 프로필을 등록하고 무료 추천을 확인할 수 있어요.</p></div><Link className="text-link" href="/profile">내 프로필 확인 →</Link></div>
   </section>;
 }

@@ -1,7 +1,14 @@
-A 합류 후 전체 흐름 검증 준비
+A·B·C 전체 흐름 검증 준비
 2026-11-23 / C 브랜치
 
-1. A 코드가 오면
+현재 연결된 A 코드
+- A의 feature/a-fortune-storage가 PR #3(0b59d2f)을 거쳐 원격 C 3e99ac7에 합류했다.
+- 동의 필드는 matchingStorageConsent: matching_birth_storage_v1이다.
+- /api/fortune의 matchingStorage.status와 /api/fortune/matching-basis의 analysisStorage.status를 확인한다.
+- ready이면서 동의했을 때만 저장하며, not_consented/skipped/unavailable/failed를 성공과 구분한다.
+- 코드 합류와 실제 학교 계정 전체 흐름 검증은 별도다.
+
+1. A의 추가 코드를 통합할 때
 - A 브랜치와 커밋 해시를 기록하고 최신 C에 통합한다. main은 수정하지 않는다.
 - 저장 동의 필드 이름/strict 스키마, 저장 호출 위치, 개인정보 표시 문구를 계약서 9장과 대조한다.
 - 기능을 합친 뒤 깨끗한 작업 트리에서 자동 검사를 실행하고 그 커밋을 기록한다.

@@ -1,3 +1,11 @@
+최신: A 저장 코드 합류 후 통합 준비 도구 재검증 (2026-11-23)
+- C_INTEGRATION_TOOLS_2026-11-23.txt의 동시 원격 변경 반영 절을 확인한다.
+- C 원격 3e99ac7에 A 저장 코드가 합류해 문서 푸시를 fetch/rebase로 맞췄다.
+- 저장 동의 matchingStorageConsent=matching_birth_storage_v1 및 B 저장 호출 코드가 포함됐다.
+- 실행 도구의 6단계 재통과, 기본 462개 + HTTP20. 실제 학교 계정·PG·정책 승인은 미검증/미정으로 유지한다.
+- 사주 결과의 프로필 진입 안내 문구를 실제 등록 화면에 맞췄다. 최종 CI 결과는 위 문서에 기록한다.
+- 공유 DB/main에 쓰지 않았다. 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
 최신: A 합류 후 통합 검증 도구·체크리스트 준비 (2026-11-23)
 - C_INTEGRATION_TOOLS_2026-11-23.txt와 INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt를 먼저 확인한다.
 - pnpm verify:integration으로 계획, --run으로 격리 자동 검사, --postgres로 native 검사를 선택한다.

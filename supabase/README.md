@@ -30,4 +30,4 @@
 C_READONLY_QA_PROJECT_REF=acghfykdtorpxkbmknja pnpm verify:supabase:readonly
 ```
 
-사주 입력 저장 동의와 A의 `recordBirthInput`/`recordMatchingAnalysis` 연결은 남아 있습니다. [B 계약서 9장](../docs/CONTRACT_profile_matching.md)을 기준으로 연결합니다. 기존 C의 대상별 500원 주문, 무료 수락, 수락 후 채팅 규칙은 유지합니다.
+사주 입력 저장 동의와 A의 `recordBirthInput`/`recordMatchingAnalysis` 연결 코드는 C에 합류했습니다. 실제 학교 계정으로 저장·프로필·추천 흐름을 확인하는 검증은 남아 있습니다. [B 계약서 9장](../docs/CONTRACT_profile_matching.md)을 기준으로 연결합니다. 기존 C의 대상별 500원 주문, 무료 수락, 수락 후 채팅 규칙은 유지합니다.
