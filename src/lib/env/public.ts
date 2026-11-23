@@ -1,0 +1,10 @@
+import { ConfigurationError } from './schema';
+
+export function getSupabasePublicConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key || !key.startsWith('sb_publishable_')) {
+    throw new ConfigurationError(['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY']);
+  }
+  return { url, key };
+}

@@ -56,3 +56,9 @@ ios/Pods/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ===== Next / TypeScript (A 공통 앱) =====
+*.tsbuildinfo
+.pnpm-store/
+test-results/
+*.log
