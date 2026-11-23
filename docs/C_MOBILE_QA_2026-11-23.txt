@@ -30,6 +30,13 @@
 - C 및 UI 기존 검사, lint/typecheck 실행. 최종 CI 결과는 아래 후속 기록 참조.
 - 브라우저 핵심 화면 3장을 저장소 밖 work/mobile-qa-2026-11-23에 보관.
 
+최종 검증
+코드 ffe9af566b766bbcfa898cf3a67cea2582f91a77
+https://github.com/sanghoo0628/saju/actions/runs/45161083639
+App, API and UI / Native PostgreSQL concurrency 모두 success.
+B150+C171+A118+UI25+도구14=478개 및 native12, 총490개 통과.
+HTTP20, lint, typecheck, Next/Vite build 통과.
+
 한계/재개
 - 브라우저 뷰포트 검증이며 실제 휴대폰 키보드·Safari 기기 검증은 아님.
 - 메모리 데모는 서버를 재시작하면 초기화된다. 서버 재시작 간 영속성 검증은 아님.
