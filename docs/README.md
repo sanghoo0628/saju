@@ -17,3 +17,5 @@
 - [`CODEX_HANDOFF.md`](CODEX_HANDOFF.md), [`TASKS_AND_ACCEPTANCE.md`](TASKS_AND_ACCEPTANCE.md), [`ACTIVITY_BOOKING_PLAN.md`](ACTIVITY_BOOKING_PLAN.md), [`CODEX_START_PROMPT.md`](CODEX_START_PROMPT.md), [`references/`](references) — 개발 계획 원문과 배경 자료
 
 C 최신 재개 기록: C_RESUME_2026-11-23.txt
+
+- [`C_CI_VALIDATION_2026-11-23.txt`](C_CI_VALIDATION_2026-11-23.txt) — 최신 자동 검증: 기본 347 + native PostgreSQL 10 + HTTP 20 통과
