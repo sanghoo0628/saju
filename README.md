@@ -77,6 +77,8 @@ C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이
 
 [B 프로필 통합 및 개발 DB 읽기 전용 확인](docs/C_B_PROFILE_INTEGRATION_2026-11-23.txt)에 최신 검증과 재실행 명령을 정리했습니다.
 
+[B CLI·테스트 후속 변경](docs/C_B_FOLLOWUPS_2026-11-23.txt)과 [Supabase 로컬 설정 안내](supabase/README.md)도 반영했습니다.
+
 ## 독립 C 화면 데모
 
 ```bash

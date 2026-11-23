@@ -1,3 +1,11 @@
+최신: B 후속 CLI 설정·테스트 hook 통합 (2026-11-23)
+- C_B_FOLLOWUPS_2026-11-23.txt를 먼저 확인한다.
+- B rebase 후 기능 tree가 C와 동일함을 확인하고 84fc5d3/ae3beb5만 반영했다.
+- CLI 로컬 주소·미사용 seed 정리, hookTimeout=60000 반영.
+- 기본 438개 + HTTP 20개, lint/typecheck/Next/Vite build 통과.
+- DB 쓰기·CLI 스택 기동은 하지 않았다. native 12개와 최종 CI는 위 문서에 기록한다.
+- 작업 위치 /private/tmp/saju-c-20261123. 아래는 이전 기록이다.
+
 최신: B 프로필 통합·개발 DB 후속 SQL 확인 (2026-11-23)
 - C_B_PROFILE_INTEGRATION_2026-11-23.txt를 먼저 확인한다.
 - B d4d8eea를 C에 cherry-pick(5b68327), /profile 화면과 새 프로필 API 통합.

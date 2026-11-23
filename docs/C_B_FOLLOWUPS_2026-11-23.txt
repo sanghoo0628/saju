@@ -1,0 +1,39 @@
+B CLI 설정·DB 테스트 후속 커밋 통합
+2026-11-23 / codex/c-payment-chat
+
+소스 확인과 반영
+B가 브랜치를 최신 C f8c032b 기준으로 rebase했다.
+기능 커밋 8e96848은 현재 C에 반영한 5b68327과 tree diff가 없음을 확인했다.
+기능 코드를 중복 반영하지 않고 후속 84fc5d3(CLI 설정), ae3beb5(hookTimeout)만 cherry-pick했다.
+각 C 커밋은 f164811, 6016ac2다.
+이전 B 해시 0848573/b1d78b1은 rebase 전 해시이며 이번에는 새 해시를 기준으로 했다.
+
+변경
+supabase/config.toml과 supabase/.gitignore를 추가했다.
+존재하지 않는 seed.sql 실행을 끄고 sql_paths를 비웠다.
+Auth 사이트를 .env.example과 같은 http://localhost:3000으로 맞췄다.
+추가 허용 주소도 실제 HTTP 로컬 주소 http://127.0.0.1:3000으로 맞췄다.
+Supabase README의 SQL이 없다는 예전 설명을 7개 SQL·현재 연결 상태에 맞춰 갱신했다.
+Vitest hookTimeout=60000을 반영해 병렬 PGlite 준비·정리 hook 시간을 확보했다.
+테스트 본문 제한이나 검증 조건을 느슨하게 바꾸지 않았다.
+
+검증
+Python tomllib으로 TOML 구문을 파싱했다.
+앱 예시 주소 일치, 미사용 seed 비활성, SQL 파일 7개, 설정 포트 간 중복 없음 확인.
+개발 DB에서 READ ONLY로 server_version_num만 조회해 메이저 버전 17과 설정 일치를 확인했다.
+TLS 검증을 유지했으며 공유 DB에 쓰지 않았다.
+설정 키 의미는 공식 https://supabase.com/docs/guides/local-development/cli/config 를 확인했다.
+공식 JSON schema URL은 웹 도구로 열리지 않아 전체 JSON schema 검증 완료로 주장하지 않는다.
+로컬 Supabase CLI 서비스 기동이나 원격 config 반영은 수행하지 않았다.
+현재 앱 연결은 기존 공유 개발 프로젝트 그대로다.
+
+회귀
+기본 438개(B/DB 150 + C 167 + A 97 + UI 24), ESLint, 타입 검사,
+Next/Vite 빌드, 로컬 HTTP 20개 모두 통과했다.
+native PostgreSQL 12개와 최종 앱 CI는 푸시 후 확인해 기록한다.
+기존 7개 SQL, DB/RLS, 앱 API, 결제/채팅 동작, 환경 변수 파일은 변경하지 않았다.
+
+재개
+작업 위치는 /private/tmp/saju-c-20261123이며 main과 A/B 브랜치에는 쓰지 않는다.
+이로써 B의 확인된 기능 커밋과 두 후속 커밋은 C에 모두 반영된다.
+A의 사주 입력 저장 동의·호출 연결, 실제 학교 메일 수신, Groble 공식 연동은 남아 있다.
