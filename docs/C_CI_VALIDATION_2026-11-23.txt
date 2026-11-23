@@ -1,3 +1,12 @@
+최신: A 저장 코드 합류 후 통합 준비 재검증 (2026-11-23)
+- 외부 C 3e99ac7의 A 저장 코드를 보존하고 문서 커밋을 rebase했다.
+- 최종 코드 0029435, https://github.com/sanghoo0628/saju/actions/runs/45156222365
+- 기본 462개(B150+C167+A107+UI24+도구14) + native12 + HTTP20 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 실제 실행 도구 6단계도 새 A 코드에서 통과. 수동 17개는 미실행 상태로 유지한다.
+- 실제 학교 메일·계정 전체 흐름·공식 PG·환불 정책은 별도 확인 대상이다.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
 최신: A 합류용 통합 검증 도구 준비 (2026-11-23)
 - C_INTEGRATION_TOOLS_2026-11-23.txt와 INTEGRATION_VERIFICATION_GUIDE_2026-11-23.txt 확인.
 - 코드 2809c0e, https://github.com/sanghoo0628/saju/actions/runs/45155219028

@@ -1,6 +1,13 @@
 C 통합 검증 준비 도구
 2026-11-23 / codex/c-payment-chat
 
+최신 결과: A 저장 코드 포함
+검증 코드 0029435d629c3475fe7346206d01d90a5606a964
+CI: https://github.com/sanghoo0628/saju/actions/runs/45156222365
+기본 462개 + native12 = 테스트 474개, HTTP20, lint/typecheck/Next/Vite build 모두 통과.
+A 저장 코드 합류 뒤 실제 실행 도구 6단계도 통과했으며 수동 검증은 미실행으로 유지한다.
+아래의 452/464개 결과는 A 저장 코드 합류 전 기록이다.
+
 추가한 것
 - scripts/verify-integration.ts: 기본은 계획 출력, --run으로 기존 검사 6개를 순서대로 실행
 - scripts/integration-checklist.ts: 직접 확인할 17개 시나리오와 5개 확인/결정 항목
@@ -70,4 +77,4 @@ main과 공유 DB는 변경하지 않았다.
 - A 저장 테스트 10개를 포함한 기본 테스트 462개(B150+C167+A107+UI24+도구14)가 통과했다.
 - 사주 결과의 이전 프로필 준비 중 문구만 현재 등록 화면에 맞춰 갱신했다. 저장 동의/업무 정책은 변경하지 않았다.
 - README/실행 안내를 A 코드 합류 상태로 갱신했다. 실제 학교 계정 전체 흐름과 PG는 여전히 별도다.
-- A 합류 이후 최종 CI 결과는 추가 확인 후 기록한다. 앞의 464개 결과는 A 저장 코드 합류 전 기준이다.
+- A 합류 이후 최종 CI는 0029435 / https://github.com/sanghoo0628/saju/actions/runs/45156222365에서 success다. 앞의 464개 결과는 A 저장 코드 합류 전 기준이다.
