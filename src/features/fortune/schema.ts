@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** Must equal B's BIRTH_STORAGE_CONSENT_VERSION (src/server/matching-service.ts); a test enforces it. */
+export const MATCHING_STORAGE_CONSENT_VERSION = "matching_birth_storage_v1" as const;
+
 export const fortuneInputSchema = z
   .object({
     birthDate: z.string().regex(dateParts, "생년월일을 YYYY-MM-DD 형식으로 입력해 주세요."),
@@ -24,6 +27,8 @@ export const fortuneInputSchema = z
     }).strict().default({ dayBoundary: "provider_default", timeCorrection: "provider_default" }),
     consent: z.literal(true, { error: "사주 입력 처리에 동의해 주세요." }),
     externalProviderConsent: z.literal('hrum_birth_data_v1').optional(),
+    // Opt-in storage of birth date/calendar/leap month/timezone for B's matching. Never the birth time.
+    matchingStorageConsent: z.literal(MATCHING_STORAGE_CONSENT_VERSION).optional(),
   })
   .strict()
   .superRefine((input, context) => {
