@@ -25,7 +25,8 @@
     "demo:dev": "pnpm --filter @saju/payment-chat-ui dev",
     "demo:build": "pnpm --filter @saju/payment-chat-ui build",
     "test:http:local": "node scripts/check-http-local.mjs",
-    "test:supabase:chat": "node --env-file=.env.local --import tsx scripts/verify-supabase-chat.ts"
+    "test:supabase:chat": "node --env-file=.env.local --import tsx scripts/verify-supabase-chat.ts",
+    "verify:supabase:readonly": "node --env-file=.env.local --import tsx scripts/verify-supabase-readonly.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
