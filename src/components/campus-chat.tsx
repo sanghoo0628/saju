@@ -8,7 +8,8 @@ import { loadMatchResults } from '@/lib/match-results-client';
 import type { MatchResultCard, MatchResultsResponse } from '@/contracts/matching';
 import { ChatPanel, type ChatSelection } from '../../packages/payment-chat-ui/src/ChatPanel';
 import { PaymentDialog } from '../../packages/payment-chat-ui/src/PaymentDialog';
-import { Avatar, Busy } from '../../packages/payment-chat-ui/src/ui';
+import { Busy } from '../../packages/payment-chat-ui/src/ui';
+import { MatchProfilePhoto } from './match-profile-photo';
 import type { ChatProfile } from '../../packages/payment-chat-ui/src/types';
 import { createBrowserClient, PaymentChatClientError } from '../../packages/payment-chat/src/client';
 import { createCheckoutFlow, type CheckoutState } from '../../packages/payment-chat/src/checkout-flow';
@@ -182,7 +183,7 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
       {!matchLoading && matches?.status === 'profile_required' ? <div className="campus-empty"><h2>내 프로필을 먼저 공개해주세요</h2><Link href="/profile">프로필 등록·수정</Link></div> : null}
       {!matchLoading && matches?.status === 'no_candidates' ? <p>아직 추천할 상대가 없어요. 후보가 생기면 다시 확인해주세요.</p> : null}
       {!matchLoading && matches?.status === 'ready' ? <><p>무료 추천 {matches.results.length}명</p><div className="campus-profile-grid">{matches.results.map(result => <article className="campus-profile" key={result.id}>
-        <Avatar name={result.profile.nickname} /><h2>{result.profile.nickname}</h2><p>{result.profile.major ?? '학과 비공개'}</p><p>{result.profile.bio}</p>
+        <MatchProfilePhoto nickname={result.profile.nickname} photoUrl={result.profile.photoUrl} /><h2>{result.profile.nickname}</h2><p>{result.profile.major ?? '학과 비공개'}</p><p>{result.profile.bio}</p>
         <div className="tags">{result.profile.interests.map(interest => <span key={interest}>{interest}</span>)}</div>
         <button className="primary" onClick={() => start(result)}>{inbox.rooms.some(room => room.members.includes(result.profile.userId)) ? '대화 이어가기 · 무료' : '대화 권한 확인 · 500원'}</button>
       </article>)}</div></> : null}

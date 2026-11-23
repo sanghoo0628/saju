@@ -1,3 +1,9 @@
+최신: 추천 카드 프로필 사진 연결 (2026-11-23)
+- C_PROFILE_PHOTO_2026-11-23.txt 확인. B photoUrl을 C 카드에 표시하도록 수정.
+- 없거나 만료/실패 시 기본 아바타, 새 URL 복구, 동일 영역으로 카드 정렬 유지.
+- 기본480개/HTTP20 및 lint/typecheck/Next/Vite build, 실제 컴포넌트 브라우저 검증 통과.
+- 사용자 사진·공유 DB 쓰기 없음, main 변경 없음. 아래는 이전 기록.
+
 최신: 프로필 계열 선택 표시 수정 (2026-11-23)
 - C_PROFILE_RADIO_LAYOUT_2026-11-23.txt 확인. 문과/이과 줄바꿈 원인인 라디오 폭/여백 수정.
 - 실제 Safari 프로필에서 한 줄 표시 및 정상 크기 라디오 확인, Next webpack build/typecheck 통과.

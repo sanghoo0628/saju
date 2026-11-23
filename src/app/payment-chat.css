@@ -10,6 +10,8 @@
 .payment-chat-experience .campus-profile-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:20px; }
 .payment-chat-experience .campus-profile { display:flex; flex-direction:column; gap:14px; padding:26px; border:1px solid var(--line); border-radius:10px; background:white; overflow-wrap:anywhere; }
 .payment-chat-experience .campus-profile p { font-size:13px; line-height:1.8; }
+.payment-chat-experience .campus-profile-photo { display:grid; place-items:center; width:100%; aspect-ratio:1; overflow:hidden; border-radius:10px; background:var(--line); }
+.payment-chat-experience .campus-profile-photo img { display:block; width:100%; height:100%; object-fit:cover; }
 .payment-chat-experience .campus-profile .primary { margin-top:auto; }
 .payment-chat-experience .campus-empty { padding:32px 0; line-height:2; }
 .payment-chat-experience .campus-empty a { text-decoration:underline; }
