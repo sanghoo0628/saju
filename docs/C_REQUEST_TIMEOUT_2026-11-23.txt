@@ -47,7 +47,14 @@ ESLint, 타입 검사, Next build, Vite build, 로컬 HTTP 20개 통과.
 최초 로컬 실행에서는 loopback 권한 제한으로 DB wire/HTTP 검사가 실패했다.
 네트워크 권한을 승인받은 후 같은 검사를 다시 실행해 모두 통과했다.
 네이티브 PostgreSQL은 로컬 IPC 제한이 남아 있어 기존 12개를 GitHub Linux CI에서 확인한다.
-최종 CI 결과는 확인 후 아래에 기록한다.
+최종 CI 결과
+코드 커밋: a5595e50547f65cfded659208cade06dc64e201b
+GitHub Actions: https://github.com/sanghoo0628/saju/actions/runs/45128134156
+전체 conclusion=success. App, API and UI / Native PostgreSQL concurrency 모두 성공.
+기본 390개 + native PostgreSQL 12개 = 자동 테스트 402개 통과. HTTP 20개도 통과.
+ESLint, 타입 검사, Next/Vite 빌드 모두 통과. native 종료 오류도 없었다.
+이 기록만 추가하는 후속 문서 커밋은 CI paths-ignore 규칙에 따라 다시 실행하지 않는다.
+이번에 띄운 로컬 장애 프록시와 데모 서버는 종료했다.
 
 격리 범위와 다음 작업
 이번 작업에서 공유 Supabase 데이터·스키마와 실제 결제는 변경/실행하지 않았다.

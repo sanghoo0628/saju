@@ -1,3 +1,10 @@
+최신: C API 응답 지연 복구 검증 (2026-11-23)
+- C_REQUEST_TIMEOUT_2026-11-23.txt에 변경 및 장애 재현 결과를 정리했다.
+- 코드 a5595e5, https://github.com/sanghoo0628/saju/actions/runs/45128134156
+- 기본 390개 + native PostgreSQL 12개 + HTTP 20개 모두 통과.
+- lint/typecheck/Next/Vite build 및 전체 CI conclusion=success.
+- 아래는 이전 코드 시점의 검증 기록이다.
+
 최신: 메시지 재전송 중복 방지 검증 (2026-11-23)
 - C_MESSAGE_IDEMPOTENCY_2026-11-23.txt에 변경 및 장애 재현 결과를 정리했다.
 - 코드 8cb318e, https://github.com/sanghoo0628/saju/actions/runs/45125662054
