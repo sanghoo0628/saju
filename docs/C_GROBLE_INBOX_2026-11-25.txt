@@ -53,3 +53,5 @@ C Groble 영속 이벤트·트랜잭션 재개 기록 (2026-11-25 KST)
 - CI: https://github.com/sanghoo0628/saju/actions/runs/45436387677
 - Native PostgreSQL concurrency 작업 138595230420: success, 32개 통과
   (기존 13 + 새 inbox 19). 실제 서로 다른 연결의 동시 처리 및 원자성 검증 포함.
+- CI App, API and UI 작업 138595229452도 success. 두 CI 작업 모두 통과.
+- 최종 자동 검사: 기본 551 + native PostgreSQL 32 = 583개, HTTP20 및 빌드 통과.
