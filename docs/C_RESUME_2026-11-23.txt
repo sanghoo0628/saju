@@ -1,3 +1,32 @@
+저장 시점: 사용자 요청으로 작업 중단 (2026-11-23)
+- C 브랜치 codex/c-payment-chat. 기능 수정 4fe7a5c, 최신 main 보존 통합 d01b6bf.
+- A 피드백 6개와 추천 사진 수정 반영 완료. C_A_REVIEW_FIXES_2026-11-23.txt 확인.
+- 최종 CI507개+HTTP20, lint/typecheck/Next/Vite build 모두 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45170760532
+- 팀에서 올린 main 82f466c의 A 로그인/동의·README 변경을 C로 가져왔다. main에는 쓰지 않았다.
+- 새 main PR 생성·승인·병합 및 A/B에게 메시지 전송은 하지 않았다.
+- 재개: C 원격 최신 상태 확인 → A에게 전달할 결과/검토 PR 준비 → Groble 답변에 맞춘 실제 결제 연결.
+- 거절 후 환불 및 환불 후 기존 방 정책은 별도 팀 결정 대기. 이번 수정으로 정책을 새로 정하지 않았다.
+- 실행 중인 앱 4303은 사진 수정 da30a69 빌드다. 최신 A 피드백 백엔드 수정까지 적용하려면 재시작/재빌드 필요.
+- 작업 폴더 /private/tmp/saju-c-20261123. 임시 폴더가 없어지면 저장소 C 브랜치를 다시 clone하면 된다.
+- 비밀 환경 파일은 원래 로컬 .env.local에만 유지. CA 파일도 저장소 밖에 있으며 새로 만들거나 키를 바꾸지 않는다.
+- 아래 기록은 이전 단계의 검증/작업 이력이다.
+
+최신: A 리뷰 6개 항목 반영 (2026-11-23)
+- C_A_REVIEW_FIXES_2026-11-23.txt 확인. 환불 뒤 재구매 pending 요청을 새 fulfilled 주문에 연결.
+- README 협업 규칙, 안전한 진단 로그, Supabase CA 필수 검사, 거절 후 주문 안내, CI 범위 반영.
+- 실제 dev CA 없는 연결 실패/CA 포함 READ ONLY 역할 전환 성공 확인. 공유 DB 쓰기 없음.
+- main 수정/PR 병합 없이 C 브랜치에서만 진행. 아래는 이전 기록.
+- 팀의 최신 main 82f466c를 C로 병합해 A 로그인/동의 및 README 팀원 표·규칙을 보존했다.
+
+최신: 추천 카드 프로필 사진 연결 (2026-11-23)
+- C_PROFILE_PHOTO_2026-11-23.txt 확인. B photoUrl을 C 카드에 표시하도록 수정.
+- 없거나 만료/실패 시 기본 아바타, 새 URL 복구, 동일 영역으로 카드 정렬 유지.
+- 기본480개/HTTP20 및 lint/typecheck/Next/Vite build, 실제 컴포넌트 브라우저 검증 통과.
+- 코드 da30a69, 최종 CI492개+HTTP20 및 전체 빌드 통과. 수정 앱은 4303/matches.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45164656330
+- 사용자 사진·공유 DB 쓰기 없음, main 변경 없음. 아래는 이전 기록.
+
 최신: 프로필 계열 선택 표시 수정 (2026-11-23)
 - C_PROFILE_RADIO_LAYOUT_2026-11-23.txt 확인. 문과/이과 줄바꿈 원인인 라디오 폭/여백 수정.
 - 실제 Safari 프로필에서 한 줄 표시 및 정상 크기 라디오 확인, Next webpack build/typecheck 통과.

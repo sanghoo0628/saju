@@ -2,10 +2,10 @@ name: C integration checks
 
 on:
   push:
-    branches: [codex/c-payment-chat]
+    branches: [codex/c-payment-chat, 'feature/**', 'fix/**']
     paths-ignore: ['docs/**', 'README.md', '**/INTEGRATION*.txt']
   pull_request:
-    branches: [main]
+    branches: [main, codex/c-payment-chat]
     paths-ignore: ['docs/**', 'README.md', '**/INTEGRATION*.txt']
   workflow_dispatch:
 

@@ -154,3 +154,15 @@ it('rechecks SQL-backed blocking before returning an existing message',async()=>
   await t.db.query('insert into public.blocks(blocker_id,blocked_id) values($1,$2)',[A,ME]);
   await expect(service.sendMessage({userId:ME},id,'one message',key)).rejects.toMatchObject({code:'BLOCKED'});
 });
+
+it('refunded pending requests use the repurchased order in production SQL and can be accepted', async () => {
+  const old = await paid();
+  const request = await service.requestChat({userId:ME}, old);
+  await t.asService(q => q.query("update public.orders set status='refunded' where id=$1", [old]));
+  const replacement = await paid();
+  const rebound = await service.requestChat({userId:ME}, replacement);
+  expect(rebound).toMatchObject({id:request.id,orderId:replacement,status:'pending'});
+  const stored = await t.asService(q=>q.query('select order_id,responded_at from public.chat_requests where id=$1',[request.id]));
+  expect(stored.rows[0]).toMatchObject({order_id:replacement,responded_at:null});
+  expect(await service.acceptChat({userId:A},request.id)).toHaveProperty('conversationId');
+});

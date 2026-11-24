@@ -74,28 +74,28 @@ pnpm dev
 - 사주 공급자: `.env.example`의 `SAJU_PROVIDER`, HRUM 관련 설정. 기존 `SAJU_USE_MOCK`은 A에서 사용하지 않습니다.
 - Groble: 변수 이름만 예약되어 있습니다. URL/키를 넣거나 flag를 바꾸는 것으로 실제 결제를 활성화할 수 없습니다.
 
-CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS 인증서 검증을 유지하며, CA 파일은 배포 환경에도 별도로 준비해야 합니다.
+Supabase DB 연결에는 `DATABASE_SSL_CA_PATH`가 필수입니다. CA는 Supabase 대시보드 Database Settings에서 다운로드합니다. TLS 인증서 검증을 유지하며, CA 파일은 배포 환경에도 별도로 준비해야 합니다.
 인증된 사용자 UUID는 A 서버 인증으로 확인하며, 브라우저 본문의 구매자·작성자 ID를 신뢰하지 않습니다.
 
 ## 검사
 
 ```bash
-pnpm test        # B/DB 150, C 171, A 119, UI 25, 통합 도구 14 = 479
+pnpm test        # B/DB, C, A, UI, 통합 도구 검사
 pnpm lint
 pnpm typecheck
 pnpm build
 pnpm demo:build
 pnpm test:http:local # 미설정 테스트 환경에서 빌드한 앱을 시작·검사·종료
-pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 12개
+pnpm test:postgres # 별도 네이티브 PostgreSQL 다중 연결 검사 13개
 ```
 
 기본 검사와 빌드는 실제 Supabase 계정이나 결제 없이 실행합니다.
 미설정 상태로 HTTP 검사를 할 때는 서버 실행 프로세스의 Supabase URL/공개 키를 함께 비워서 실행하세요.
 실제 `.env.local`의 기존 비밀 값을 지우거나 교체하지 마세요.
-네이티브 PostgreSQL 검사 12개는 [GitHub Actions 실행](https://github.com/sanghoo0628/saju/actions/runs/45156222365)에서 모두 통과했습니다.
-로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 479개에 포함되지 않습니다.
+네이티브 PostgreSQL 검사는 결제·요청 동시성과 환불 후 재구매를 확인합니다. 최신 결과는 C 재개 기록과 CI를 참고하세요.
+로컬 Codex 환경의 공유 메모리 제한은 남아 있으므로 해당 검사는 CI에서 실행합니다. 기본 검사에 포함되지 않습니다.
 
-C 브랜치 push와 main 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
+C·feature/**·fix/** 브랜치 push와 main·C 대상 PR에는 `.github/workflows/c-validation.yml`이 앱/HTTP 검사와 네이티브 DB 검사를 자동 실행합니다.
 문서만 바뀐 커밋은 제외합니다. 실제 Supabase/사주/결제 키는 CI에 필요하지 않습니다.
 [자동 검증 결과와 재실행 방법](docs/C_CI_VALIDATION_2026-11-23.txt)을 참고하세요.
 
@@ -148,3 +148,8 @@ C의 공통 스타일은 `.payment-chat-experience` 안에 적용되어 A 화면
 - [C 결제 복귀 상태 모듈](docs/C_CHECKOUT_RETURN_2026-11-17.txt)
 
 세부 설계 문서의 이전 시점 설명보다 최신 통합 결과를 먼저 확인하세요.
+
+## C 검토 후속 변경
+
+추천 카드의 프로필 사진·오류 시 기본 아바타를 연결했습니다. 환불 후 재구매의 대기 요청은 새 결제 완료 주문에 연결하고, 거절된 요청에는 새 청구를 유도하지 않습니다.
+[A 리뷰 반영 및 검증 범위](docs/C_A_REVIEW_FIXES_2026-11-23.txt)와 [C 재개 기록](docs/C_RESUME_2026-11-23.txt)을 참고하세요.

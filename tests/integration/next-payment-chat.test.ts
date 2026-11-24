@@ -125,3 +125,27 @@ it('Next boundary forwards raw webhook bytes and signature headers unchanged', a
   expect(response.status).toBe(500);
   expect(calls).toBe(0);
 });
+
+it('unexpected Next boundary failures invoke the diagnostic hook without exposing the error', async () => {
+  const {logPaymentChatError}=await import('../../src/server/payment-chat-diagnostics');
+  const entries:unknown[]=[];
+  handler=createPaymentChatHandler({service:service(),appOrigin:origin,requireUserId:async()=>{
+    throw Object.assign(new Error('private authentication detail'),{code:'ECONNRESET'});
+  },onUnexpectedError:error=>logPaymentChatError('request',error,entry=>entries.push(entry))});
+  const response=await request('/api/conversations');
+  expect(response.status).toBe(500);
+  expect(entries).toEqual([{event:'payment_chat_unexpected_error',phase:'request',name:'Error',code:'ECONNRESET'}]);
+  expect(await response.text()).not.toContain('private authentication detail');
+});
+
+it('configuration errors preserve 503 while emitting only sanitized diagnostics', async () => {
+  const {logPaymentChatError}=await import('../../src/server/payment-chat-diagnostics');
+  const entries:unknown[]=[];
+  handler=createPaymentChatHandler({service:service(),appOrigin:origin,requireUserId:async()=>{
+    throw new ConfigurationError(['PRIVATE_CONFIG_FIELD']);
+  },onUnexpectedError:error=>logPaymentChatError('request',error,entry=>entries.push(entry))});
+  const response=await request('/api/conversations');
+  expect(response.status).toBe(503);
+  expect(entries).toEqual([{event:'payment_chat_unexpected_error',phase:'request',name:'ConfigurationError',code:'CONFIGURATION_ERROR'}]);
+  expect(await response.text()).not.toContain('PRIVATE_CONFIG_FIELD');
+});
