@@ -1,0 +1,55 @@
+C Groble 영속 이벤트·트랜잭션 재개 기록 (2026-11-25 KST)
+
+브랜치: feature/c-groble-event-verification (main 785adf7 기반)
+이전 이벤트 검증 코드: 0dbceae
+현재 기능 코드: 1d8c782 (검사 결과는 아래 후속 기록 참고)
+
+구현
+- private.groble_events: 개인정보를 포함하지 않는 이벤트 메타데이터, 정규화된 업무 내용 해시,
+  pending_mapping / applied / review_required 처리 상태와 연결 주문.
+- private.groble_deliveries: 전송 멱등 키를 이벤트 ID에 연결. 다른 이벤트에 키 재사용 시 거부.
+- private.groble_refunds: 원 거래+환불 완료 시각 기준 중복 집계 방지, 부분 환불 누적.
+- 세 테이블은 private 스키마, RLS, anon/authenticated 권한 회수, service_role만 필요한 권한 부여.
+- createGrobleInbox.receive: 서명 검증기 통과 후 같은 SQL 연결의 SERIALIZABLE 트랜잭션 안에서
+  이벤트·전송·결제 기록·주문 상태를 반영. SQL 실패 시 전체 롤백.
+- 같은 거래의 생애주기 작업을 advisory lock으로 직렬화. 충돌은 제한된 재시도로 재조회.
+- 기존 결제 완료 규칙은 applyCompletedPayment로 추출하여 기존 서비스와 공유.
+- 환불이 먼저 오면 pending_mapping으로 영속 보관. 완료 이벤트가 나중에 원 주문을 연결하면
+  누적 환불까지 함께 반영하므로 환불된 권한을 늦은 완료 이벤트로 되살리지 않음.
+- 취소 요청만으로 접근 권한을 바꾸지 않음.
+- 부분 환불액이 500원 미만이면 review_required, 기존 권한 유지. 부분 환불 정책은 팀 합의 필요.
+- 누적 환불액이 주문 금액 이상이면 refunded. 500원 초과 기록은 review_required도 남겨 검토.
+- 환불 후 새 대화 요청·미수락 요청 수락은 기존 서비스의 주문 검사로 거부.
+- 이미 수락한 방은 기존 서비스 정책대로 유지. 정책 변경을 새로 도입한 것은 아님.
+
+아직 하지 않은 것
+- main 수정/병합, 실제 배포 환경 변경, saju-dev DB 마이그레이션 적용을 하지 않음.
+- 런타임은 unavailablePaymentGateway, PAYMENTS_ENABLED=false 그대로.
+- 기존 HTTP 웹훅 경로는 아직 이 inbox를 호출하지 않음.
+- 새 마이그레이션: supabase/migrations/20261125000100_groble_event_inbox.sql
+  B가 리뷰하고 적용해야 함. 현재 공유 DB에는 필요한 테이블이 아직 없음.
+- Groble 상품/시크릿 수령, 실제 서명 이벤트, 결제 E2E, 환불 정책 최종 합의는 미완료.
+- 운영 활성화 시 10초 응답 예산/타임아웃, 미연결 이벤트 관측·재처리 운영 절차를 별도로 점검해야 함.
+- verify 주입은 서버 전용 경계. 테스트의 파싱 fixture를 실제 검증기로 쓰면 안 됨.
+
+검증 설계
+- 새 native PostgreSQL 테스트 19개: 동시 중복 완료, 전송 키 충돌, 본문 충돌,
+  환불 선행/동시 도착, 부분 환불 누적/중복, 초과 기록, 수락 전/후 환불, 롤백, 권한 제한.
+- 기존 PostgreSQL 13개 및 기존 서비스/화면 회귀 검사 유지.
+- 로컬 native PostgreSQL은 sandbox shmget 권한 제한으로 시작 불가. 테스트 통과로 기록하지 않음.
+- GitHub Actions의 격리 native PostgreSQL 결과를 확인 후 아래에 기록한다.
+
+다음
+1. B 채팅 테스트용 주문 준비 응답 후 실제 배포 UI 요청→수락→실시간 송수신 확인.
+2. B와 새 마이그레이션 및 부분 환불/기존 방 유지 정책 리뷰.
+3. Groble 답변 후 서버 런타임·HTTP 경로 연결 및 테스트 발송 확인.
+4. 실제 결제/환불 검증 후 운영 활성화. main 자동 병합 금지.
+
+검증 결과
+- 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본 551개, HTTP20, lint/typecheck, Next/Vite 빌드 통과.
+- 로컬 보고서: test-results/integration/2026-11-24T16-22-24-718Z-96b8de0c/report.json
+- GitHub CI 기능 커밋: 1d8c782fa97a0f99e809f1defa8ab1ce3936aa13
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45436387677
+- Native PostgreSQL concurrency 작업 138595230420: success, 32개 통과
+  (기존 13 + 새 inbox 19). 실제 서로 다른 연결의 동시 처리 및 원자성 검증 포함.
