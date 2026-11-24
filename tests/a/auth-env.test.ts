@@ -200,3 +200,17 @@ test('HRUM key header-injection and whitespace errors never expose the credentia
     });
   }
 });
+
+test('HTTPS preview accepts an explicitly labelled mock without relaxing production', () => {
+  const preview = parseServerEnv({APP_ENV:'preview',NEXT_PUBLIC_APP_URL:'https://saju-preview.example.test',SAJU_PROVIDER:'mock'});
+  assert.equal(preview.APP_ENV,'preview');
+  assert.equal(preview.SAJU_PROVIDER,'mock');
+  assert.equal(preview.PAYMENTS_ENABLED,false);
+  assert.throws(()=>parseServerEnv({APP_ENV:'preview',NEXT_PUBLIC_APP_URL:'http://saju-preview.example.test'}),ConfigurationError);
+  assert.throws(()=>parseServerEnv({...productionEnv,SAJU_PROVIDER:'mock'}),ConfigurationError);
+});
+
+test('Vercel production cannot silently run with development or preview sample settings', () => {
+  assert.throws(()=>parseServerEnv({VERCEL_ENV:'production',APP_ENV:'preview',NEXT_PUBLIC_APP_URL:'https://saju.example.test',SAJU_PROVIDER:'mock'}),ConfigurationError);
+  assert.equal(parseServerEnv({...productionEnv,VERCEL_ENV:'production'}).APP_ENV,'production');
+});

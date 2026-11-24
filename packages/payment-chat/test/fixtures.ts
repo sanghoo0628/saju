@@ -104,5 +104,5 @@ export function fixture() {
     const request = await service.requestChat(alice, orderId);
     return (await service.acceptChat(bob, request.id)).conversationId;
   }
-  return { service, event, deliver, paid, room, get state() { return state; } };
+  return { repository, service, event, deliver, paid, room, get state() { return state; } };
 }

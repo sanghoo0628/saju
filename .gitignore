@@ -15,6 +15,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .next/
+.vercel/
 .expo/
 dist/
 build/

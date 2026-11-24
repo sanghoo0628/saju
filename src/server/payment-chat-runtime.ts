@@ -15,7 +15,7 @@ function createRuntime() {
   const caPath = process.env.DATABASE_SSL_CA_PATH;
   const database = createPaymentChatDatabase(connectionString, { pool: {
     max: 5,
-    ssl: paymentChatTls(connectionString, caPath),
+    ssl: paymentChatTls(connectionString, caPath, process.env.DATABASE_SSL_CA_PEM),
   } });
   const service = createService({ repository: database.repository, gateway: unavailablePaymentGateway });
   const handle = createPaymentChatHandler({ service, appOrigin: env.NEXT_PUBLIC_APP_URL,

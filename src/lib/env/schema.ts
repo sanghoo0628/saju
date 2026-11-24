@@ -12,7 +12,7 @@ export class ConfigurationError extends Error {
 }
 
 const serverSchema = z.object({
-  APP_ENV: z.enum(['development', 'production']).default('development'),
+  APP_ENV: z.enum(['development', 'preview', 'production']).default('development'),
   NEXT_PUBLIC_APP_URL: z.url().default('http://localhost:3000'),
   NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalText,
@@ -43,6 +43,7 @@ const serverSchema = z.object({
   try { appUrl = new URL(v.NEXT_PUBLIC_APP_URL); } catch { return; }
   if (appUrl.username || appUrl.password || appUrl.pathname !== '/' || appUrl.search || appUrl.hash) issue('NEXT_PUBLIC_APP_URL');
   if (v.APP_ENV === 'development' && !['localhost', '127.0.0.1', '[::1]'].includes(appUrl.hostname)) issue('APP_ENV');
+  if (v.APP_ENV === 'preview' && appUrl.protocol !== 'https:') issue('NEXT_PUBLIC_APP_URL');
   // C's payment module has not been integrated; no success switch in the A shell.
   if (v.PAYMENTS_ENABLED || v.MOCK_PAYMENTS_ENABLED) issue('PAYMENTS_ENABLED/MOCK_PAYMENTS_ENABLED');
   if (v.APP_ENV === 'production') {
@@ -59,5 +60,7 @@ const serverSchema = z.object({
 export function parseServerEnv(source: Record<string, string | undefined>) {
   const result = serverSchema.safeParse(source);
   if (!result.success) throw new ConfigurationError([...new Set(result.error.issues.map(i => i.path.join('.')))]);
+  if (source.VERCEL_ENV === 'production' && result.data.APP_ENV !== 'production')
+    throw new ConfigurationError(['APP_ENV']);
   return result.data;
 }
