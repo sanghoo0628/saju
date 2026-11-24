@@ -35,6 +35,9 @@
 - 별도 설치 완료 후 pnpm verify:integration --run의 lint/types/tests/app_build/demo_build/http
   6단계를 실제로 실행해 모두 통과했다. 기본526개, HTTP20 통과. 실제 사용자 전체 흐름은 미완료로 유지.
 - Next 기본 Turbopack build와 Vite build도 통과했다. 최초 의존성 링크로 인한 로컬 실패와 구분한다.
+- 최종 코드 2b1e703, CI: https://github.com/sanghoo0628/saju/actions/runs/45365978806
+  기본526개 + native13 = 총539개, HTTP20 및 lint/types/Next/Vite build 모두 통과.
+  실제 배포와 실제 Groble 결제는 아직 미검증이다.
 
 Vercel 연결 단계
 - 본인 GitHub를 Vercel에 연결하고 sanghoo0628/saju 저장소 접근을 허용한다.

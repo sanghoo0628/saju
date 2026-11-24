@@ -14,6 +14,9 @@
 - 작업 폴더 /private/tmp/saju-release-20261124. 별도 pnpm frozen 설치 완료, 의존성 링크 제거.
 - 원본 C 작업 폴더 /private/tmp/saju-c-20261123는 보존.
 - pnpm verify:integration --run 6단계 통과. 기본526개+HTTP20, 실제 전체 흐름 미완료 유지.
+- 코드 2b1e703, 최종 CI539개+HTTP20 및 모든 빌드 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45365978806
+- 최종 확인 시에도 Vercel saju 프로젝트 목록은 비어 있었다. 배포 URL은 아직 없다.
 
 외부 상태
 - Vercel 계정 확인: jwmoon799, team_I32YvmW6GJ7psx0sz9FUnExC. 해당 repo 프로젝트 없음.
