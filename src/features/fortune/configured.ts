@@ -25,7 +25,7 @@ export function getFortunePublicConfiguration() {
 export function getFortuneServiceOptions(userId: string) {
   const env = getServerEnv();
   let provider = unconfigured;
-  if (env.APP_ENV === 'development' && env.SAJU_PROVIDER === 'mock') provider = mock;
+  if (env.APP_ENV !== 'production' && env.SAJU_PROVIDER === 'mock') provider = mock;
   else if (env.SAJU_PROVIDER === 'hrum' && env.SAJU_API_KEY && env.SAJU_FINGERPRINT_SECRET) {
     if (!hrum || hrum.key !== env.SAJU_API_KEY) hrum = { key: env.SAJU_API_KEY, provider: createHrumFortuneProvider({apiKey:env.SAJU_API_KEY}) };
     provider = hrum.provider;
