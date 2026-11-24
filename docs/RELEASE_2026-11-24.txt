@@ -80,3 +80,8 @@ https://www.groble.im/help/guides/payment-window
 https://www.groble.im/help/guides/webhook
 https://www.groble.im/help/guides/webhook-events
 https://vercel.com/docs/builds/configure-a-build
+
+최신 담당 변경 (사용자 확인)
+- 배포는 B가 담당. 사용자 Vercel에 별도 프로젝트를 생성하지 않는다.
+- B에게 배포 주소, 배포 브랜치/커밋, 누락 환경 변수 이름을 받아 C 검증을 이어간다.
+- HRUM 운영 키 준비는 아직 확인되지 않았으며 Groble 답변도 대기 중이다.
