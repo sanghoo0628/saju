@@ -12,3 +12,4 @@
 .profile-track .profile-choice input[type=radio]{width:16px;height:16px;min-height:0;flex:0 0 16px;padding:0;accent-color:var(--terra);margin:0}
 .profile-choice:has(input:disabled){cursor:not-allowed;opacity:.8}
 @media(max-width:760px){.profile-photo-row{grid-template-columns:72px 1fr;gap:15px}.profile-photo{width:72px;height:72px;font-size:26px}.profile-form textarea{font-size:12px}}
+.profile-preference-hint{display:block;margin:-4px 0 23px}

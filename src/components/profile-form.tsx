@@ -8,6 +8,7 @@ import {
   PROFILE_PHOTO_LIMITS,
   type Gender,
   type MyProfileResponse,
+  type PreferredGender,
   type ProfileStateResponse,
   type UpdateProfileRequest,
 } from '@/contracts/matching';
@@ -17,6 +18,7 @@ import './profile-form.css';
 const PHOTO_BUCKET = 'profile-photos';
 const PHOTO_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const TRACK_LABEL: Record<Track, string> = { humanities: '문과', science: '이과' };
+const PREFERRED_GENDER_LABEL: Record<PreferredGender, string> = { any: '상관없음', female: '여성', male: '남성' };
 
 type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; state: ProfileStateResponse };
 
@@ -106,6 +108,7 @@ function ProfileEditor({ userId, initial, lockedTrack }: { userId: string; initi
     if (interests.length > PROFILE_LIMITS.interestsMax) { setError(`관심사는 최대 ${PROFILE_LIMITS.interestsMax}개예요.`); return; }
     if (interests.some(item => item.length > PROFILE_LIMITS.interestMax)) { setError(`관심사 하나는 ${PROFILE_LIMITS.interestMax}자 이하예요.`); return; }
     const gender = String(values.get('gender') ?? '');
+    const preferred = String(values.get('preferredGender') ?? 'any');
     const body: UpdateProfileRequest = {
       nickname: String(values.get('nickname') ?? ''),
       isPublic: values.get('isPublic') === 'on',
@@ -114,6 +117,7 @@ function ProfileEditor({ userId, initial, lockedTrack }: { userId: string; initi
       university: String(values.get('university') ?? ''),
       major: String(values.get('major') ?? ''),
       interests,
+      preferredGender: preferred === 'male' || preferred === 'female' ? preferred : 'any',
       ...(trackLocked ? {} : { track }),
       ...(photoPath !== undefined ? { photoPath } : {}),
     };
@@ -167,12 +171,20 @@ function ProfileEditor({ userId, initial, lockedTrack }: { userId: string; initi
       <div className="field"><label htmlFor="gender">성별 (선택)</label>
         <select id="gender" name="gender" defaultValue={p?.gender ?? ''}><option value="">선택하지 않음</option><option value="female">여성</option><option value="male">남성</option></select>
       </div>
+      <div className="field"><label htmlFor="preferredGender">추천받을 상대</label>
+        <select id="preferredGender" name="preferredGender" defaultValue={p?.preferredGender ?? 'any'}>
+          {(Object.keys(PREFERRED_GENDER_LABEL) as PreferredGender[]).map(value => <option key={value} value={value}>{PREFERRED_GENDER_LABEL[value]}</option>)}
+        </select>
+      </div>
+    </div>
+    <span className="field-hint profile-preference-hint">추천받을 상대는 나만 볼 수 있어요. 상대가 정한 조건에도 내가 맞아야 서로 추천되니, 상대를 정했다면 내 성별도 입력해주세요. 이미 받은 추천은 바뀌지 않아요.</span>
+    <div className="field-row">
       <div className="field"><label htmlFor="university">학교 (선택)</label>
         <input id="university" name="university" maxLength={PROFILE_LIMITS.schoolFieldMax} defaultValue={p?.university ?? ''} placeholder="고려대학교" />
       </div>
-    </div>
-    <div className="field"><label htmlFor="major">전공 (선택)</label>
-      <input id="major" name="major" maxLength={PROFILE_LIMITS.schoolFieldMax} defaultValue={p?.major ?? ''} />
+      <div className="field"><label htmlFor="major">전공 (선택)</label>
+        <input id="major" name="major" maxLength={PROFILE_LIMITS.schoolFieldMax} defaultValue={p?.major ?? ''} />
+      </div>
     </div>
     <div className="field"><label htmlFor="bio">소개 (선택)</label>
       <textarea id="bio" name="bio" rows={4} maxLength={PROFILE_LIMITS.bioMax} defaultValue={p?.bio ?? ''} placeholder="나를 한두 문장으로 소개해주세요." />

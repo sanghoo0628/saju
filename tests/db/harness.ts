@@ -94,6 +94,9 @@ export interface SeedUser {
   isPublic?: boolean;
   isActive?: boolean; // false 이면 status = 'deleted' (탈퇴)
   photoPath?: string | null;
+  gender?: "male" | "female" | null;
+  /** 주면 match_preferences 행을 만든다 (없으면 상관없음과 같음) */
+  preferredGender?: "any" | "male" | "female";
 }
 
 /** 슈퍼유저로 직접 시드 (RLS 무시) */
@@ -104,11 +107,14 @@ export async function seedUsers(db: Pick<PGlite, "query">, users: SeedUser[]): P
     await db.query(`insert into auth.users (id, email) values ($1, $2)`, [u.id, `${u.id}@korea.ac.kr`]);
     const active = u.isActive ?? true;
     await db.query(
-      `insert into public.profiles (id, nickname, track, is_public, status, deleted_at, photo_path)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+      `insert into public.profiles (id, nickname, track, is_public, status, deleted_at, photo_path, gender)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [u.id, `user-${u.id.slice(-4)}`, track, u.isPublic ?? true, active ? "active" : "deleted",
-        active ? null : new Date(), u.photoPath ?? null],
+        active ? null : new Date(), u.photoPath ?? null, u.gender ?? null],
     );
+    if (u.preferredGender) {
+      await db.query(`insert into public.match_preferences (user_id, preferred_gender) values ($1, $2)`, [u.id, u.preferredGender]);
+    }
     if (score !== null) {
       await db.query(
         `insert into public.fortune_results (user_id, base_number, score, score_version, fortune, program_version)

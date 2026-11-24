@@ -10,6 +10,7 @@ import type {
   MatchResultCard,
   MatchResultsResponse,
   MyProfileResponse,
+  PreferredGender,
   ProfileCard,
   ProfileStateResponse,
   UpdateProfileRequest,
@@ -81,6 +82,10 @@ export interface MatchingStore {
   insertScoreIfAbsent(userId: string, score: ComputedBirthScore): Promise<number>;
   saveFortuneAnalysis(row: FortuneAnalysisWrite): Promise<void>;
   upsertProfile(row: ProfileWrite): Promise<ProfileRow>;
+  /** match_preferences.preferred_gender (행이 없으면 any) */
+  matchPreference(userId: string): Promise<PreferredGender>;
+  /** 프로필이 있어야 저장할 수 있다 (profiles 참조) */
+  saveMatchPreference(userId: string, preferredGender: PreferredGender): Promise<void>;
   /** DB 함수 get_or_create_match_results — 공개·활성·차단 아님인 추천만 순위순 */
   getOrCreateMatchResults(userId: string): Promise<StoredMatchResult[]>;
   profiles(userIds: string[]): Promise<ProfileRow[]>;
@@ -132,7 +137,9 @@ function optionalText(value: unknown, label: string, max: number): string | null
 export function parseUpdateProfile(body: unknown, userId: string): UpdateProfileRequest {
   if (typeof body !== "object" || body === null || Array.isArray(body)) invalid("잘못된 요청입니다.");
   const b = body as Record<string, unknown>;
-  const allowed = new Set(["nickname", "isPublic", "track", "bio", "gender", "university", "major", "interests", "photoPath"]);
+  const allowed = new Set([
+    "nickname", "isPublic", "track", "bio", "gender", "university", "major", "interests", "photoPath", "preferredGender",
+  ]);
   for (const key of Object.keys(b)) if (!allowed.has(key)) invalid(`허용되지 않은 항목입니다: ${key}`);
 
   if (typeof b.nickname !== "string") invalid("닉네임을 입력해주세요.");
@@ -159,6 +166,13 @@ export function parseUpdateProfile(body: unknown, userId: string): UpdateProfile
   if (b.gender !== undefined) {
     if (b.gender !== null && b.gender !== "male" && b.gender !== "female") invalid("성별 값이 올바르지 않습니다.");
     out.gender = b.gender;
+  }
+
+  if (b.preferredGender !== undefined) {
+    if (b.preferredGender !== "any" && b.preferredGender !== "male" && b.preferredGender !== "female") {
+      invalid("추천받을 상대 성별 값이 올바르지 않습니다.");
+    }
+    out.preferredGender = b.preferredGender;
   }
 
   if (b.interests !== undefined) {
@@ -230,9 +244,12 @@ export function createMatchingService(store: MatchingStore, options: MatchingSer
     );
   }
 
-  async function myCard(row: ProfileRow): Promise<MyProfileResponse> {
-    const card = (await toCards([row])).get(row.userId)!;
-    return { ...card, isPublic: row.isPublic };
+  async function myCard(row: ProfileRow, preferredGender?: PreferredGender): Promise<MyProfileResponse> {
+    const [cards, pref] = await Promise.all([
+      toCards([row]),
+      preferredGender ?? store.matchPreference(row.userId),
+    ]);
+    return { ...cards.get(row.userId)!, isPublic: row.isPublic, preferredGender: pref };
   }
 
   return {
@@ -314,7 +331,9 @@ export function createMatchingService(store: MatchingStore, options: MatchingSer
         // 계열은 저장된 점수의 부호로만 정한다
         track,
       });
-      return myCard(saved);
+      // 프로필(참조 대상)을 저장한 뒤에 저장한다
+      if (input.preferredGender !== undefined) await store.saveMatchPreference(userId, input.preferredGender);
+      return myCard(saved, input.preferredGender);
     },
 
     /**

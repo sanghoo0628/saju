@@ -3,7 +3,7 @@
  * service_role 은 RLS 를 우회하므로 사용자 ID 는 항상 서버 세션에서 온 값만 넘긴다.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Gender } from "../contracts/matching";
+import type { Gender, PreferredGender } from "../contracts/matching";
 import type { BirthInput, Track } from "../lib/score";
 import type { MatchingStore, ProfileRow, StoredMatchResult } from "./matching-service";
 
@@ -169,6 +169,27 @@ export function createSupabaseMatchingStore(admin: SupabaseClient): MatchingStor
       );
       if (!data) throw new Error("프로필 저장 실패: 결과 없음");
       return toProfile(data);
+    },
+
+    async matchPreference(userId) {
+      const data = check(
+        await admin
+          .from("match_preferences")
+          .select("preferred_gender")
+          .eq("user_id", userId)
+          .maybeSingle<{ preferred_gender: PreferredGender }>(),
+        "추천 조건 조회",
+      );
+      return data?.preferred_gender ?? "any";
+    },
+
+    async saveMatchPreference(userId, preferredGender) {
+      check(
+        await admin
+          .from("match_preferences")
+          .upsert({ user_id: userId, preferred_gender: preferredGender }, { onConflict: "user_id" }),
+        "추천 조건 저장",
+      );
     },
 
     async getOrCreateMatchResults(userId) {

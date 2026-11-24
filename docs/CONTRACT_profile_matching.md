@@ -1,10 +1,11 @@
-# 📄 프로필 · 매칭 계약서 (B ↔ C, A 저장 계약 포함) — v3
+# 📄 프로필 · 매칭 계약서 (B ↔ C, A 저장 계약 포함) — v4
 
 > 2026-11-16 기획 변경과 C 리뷰를 반영한 버전이다. v1(주문별 추천, 오행 배점, `create_match_for_order`)은 폐기했다.
 > SQL: [`supabase/migrations/`](../supabase/migrations) · 검증: `npm test`
 > (PGlite(WASM Postgres)에 Supabase auth/storage 스텁을 만들고 모든 마이그레이션을 적용한 뒤 RLS와 제약을 테스트한다)
 > 2026-11-23 v3: A 사주 입력 저장 계약(9장)과 후속 마이그레이션 `20261123000100` 추가. 기존 6개는 수정하지 않았다.
-> 기존 6개는 개발 DB(saju-dev)에 적용됐고 C 가 실제 연동을 검증했다. `20261123000100` 은 팀 확인 후 적용한다.
+> 기존 6개는 개발 DB(saju-dev)에 적용됐고 C 가 실제 연동을 검증했다. `20261123000100` 도 saju-dev 에 적용했다.
+> 2026-11-24 v4: 추천받을 상대 성별(8장 2번 제안) — `match_preferences` 와 후속 마이그레이션 `20261124000100`. **팀 결정 후 머지·적용한다.**
 
 ## 0. 과금 흐름과 v1 대비 변경
 
@@ -37,6 +38,7 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | private_birth_data | B·A | `user_id`, calendar_type, birth_date(양력만), lunar_date(음력 원문), is_leap_month, timezone, consent_version, consented_at. birth_time 은 저장하지 않음 | 본인 조회 |
 | fortune_results | B | `user_id`, base_number, score, score_version, score_input(solar/lunar/lunar_leap), fortune·program_version(선택) | 본인 조회 |
 | fortune_analyses | B·A | `user_id`, A 의 matching_fortune_v1 (3주 원국·분석·비교 키·버전) | 없음 (서버 전용) |
+| match_preferences | B | `user_id`(profiles 참조), preferred_gender(any/male/female). 행이 없으면 any | 없음 (서버 전용) |
 | match_results | B | `id`, user_id(추천받은 사람), target_id, rank, distance, target_score | 본인 조회 |
 | orders | C | `id`, buyer_id, target_id, match_result_id, amount(=500), status, reference | 본인 조회 |
 | payments | C | `transaction_id`, order_id(unique), amount | 없음 |
@@ -60,12 +62,14 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | `20261116000500_matching_functions.sql` | 후보 선정, 무료 추천 저장·조회 |
 | `20261116000600_storage_profile_photos.sql` | 비공개 사진 버킷과 정책 |
 | `20261123000100_birth_input_and_analysis.sql` | (후속) 음력 원문·시간대·동의 기록, 점수만 저장 허용, fortune_analyses, 사진 5MB·이미지 3종 제한 |
+| `20261124000100_match_preferences.sql` | (후속) match_preferences, `match_candidates` 에 서로의 성별 조건 추가 |
 
 ## 3. 무료 추천 (B)
 
 ### 후보 조건 — `private.match_candidates(user)`
 - 요청자: 활성 + 공개 동의 + 점수 있음. 아니면 0명이다. 내가 공개해야 남을 볼 수 있다. 대화 요청을 받은 상대가 내 프로필을 봐야 하기 때문이다.
 - 제외: 본인, 비공개, 탈퇴, 점수 없음, **양방향 차단**, 이미 추천된 상대.
+- 성별 조건(v4, **서로**): 내 `preferred_gender` 가 any 가 아니면 상대 `gender` 가 그 값이어야 하고, 상대 조건이 any 가 아니면 내 `gender` 가 그 값이어야 한다. 성별을 입력하지 않은 사람은 조건을 정한 사람에게 추천되지 않는다. 이미 저장된 추천은 다시 계산하지 않는다.
 - 정렬: `abs(내 점수 + 상대 점수)` 오름차순, 동점이면 `id` 오름차순. `src/lib/matching.ts` 와 같은 규칙이며 테스트가 두 구현의 결과를 비교한다.
 
 ### 저장·조회 — `public.get_or_create_match_results(p_user)` (service_role 전용)
@@ -79,10 +83,10 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | 경로 | 설명 |
 |---|---|
 | `GET /api/match-results` | `{ status: 'ready'｜'fortune_required'｜'profile_required'｜'no_candidates', results: [{ id, rank, profile }] }` — **`id` 가 C 의 `matchResultId`**. 결과는 1~3명이며 실제 인원만 내려간다. `fortune_required` = 생년월일 미저장 → `/fortune`, `profile_required` = 프로필 미등록·비공개 → `/profile` |
-| `GET /api/profile` | `{ profile: 내 프로필｜null, birthInputSaved, lockedTrack: 'humanities'｜'science'｜null }` (v3에서 변경) |
-| `PUT /api/profile` | 프로필 생성·수정. 점수가 없으면 `track` 필수 → 서버가 저장된 생년월일 + 계열로 고정 점수 생성. 이후 계열 변경은 `TRACK_LOCKED`(409). 생년월일 미저장 `FORTUNE_REQUIRED`(409), 계열 누락 `TRACK_REQUIRED`(400), 비밀 키 미설정 `NOT_CONFIGURED`(503) |
+| `GET /api/profile` | `{ profile: 내 프로필｜null, birthInputSaved, lockedTrack: 'humanities'｜'science'｜null }` (v3에서 변경). 내 프로필에는 `preferredGender` 가 있다 (v4) |
+| `PUT /api/profile` | 프로필 생성·수정. 점수가 없으면 `track` 필수 → 서버가 저장된 생년월일 + 계열로 고정 점수 생성. 이후 계열 변경은 `TRACK_LOCKED`(409). 생년월일 미저장 `FORTUNE_REQUIRED`(409), 계열 누락 `TRACK_REQUIRED`(400), 비밀 키 미설정 `NOT_CONFIGURED`(503). `preferredGender: 'any'｜'male'｜'female'` 선택(생략하면 유지, 처음은 any) |
 
-프로필 카드 필드: `userId, nickname, gender, university, major, bio, interests, track, photoUrl`(만료 서명 URL).
+프로필 카드 필드: `userId, nickname, gender, university, major, bio, interests, track, photoUrl`(만료 서명 URL). `preferredGender` 는 카드에 넣지 않는다(본인만).
 
 ## 4. 상대별 주문 (C) — DB 가 보장하는 것
 
@@ -146,7 +150,7 @@ C 의 `Repository.transaction()` 을 Supabase REST 호출로 이어 붙이면 �
 
 ## 8. ❓ 함께 정할 것
 1. **추천 재생성**: 지금은 한 번 저장한 추천을 유지한다. 주기적 갱신이나 추가 추천을 둘지 정해야 한다.
-2. **성별·희망 조건 필터**: `profiles.gender` 는 저장만 하고 매칭에는 쓰지 않는다. 연애 매칭이면 필터를 추가해야 한다.
+2. **성별·희망 조건 필터**: v4 제안으로 "추천받을 상대 성별(상관없음/여성/남성)" 을 서로 만족하는 경우만 추천하도록 구현했다(`feature/b-preferred-gender`). 기본값 상관없음이라 머지해도 기존 추천은 같다. 팀이 채택하면 머지하고 saju-dev 에 마이그레이션을 적용한다.
 3. **거절 후 정책**: 자동 환불 여부. 거절된 상대에게는 재요청을 막는다(unique).
 4. **환불 후 채팅방**: 처리 방침을 정해야 한다.
 5. **차단 후 기록**: 지금은 차단하면 양쪽 모두 요청·방·기록이 보이지 않고, 해제하면 다시 보인다. C 서비스 동작과 같다.
