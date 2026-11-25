@@ -43,3 +43,14 @@ const handler = createGrobleWebhookHandler({
 - native PostgreSQL 2개 추가: HTTP→inbox→DB 커밋 결과, 환불 선행 202→늦은 완료 200.
   DB 테스트는 검증기 인터페이스 fixture이며 HMAC 검증은 A 테스트에서 별도로 수행.
 - 검증 결과는 후속 기록에 추가함.
+
+검증 결과
+- 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본 테스트 574개 (B153 + C174 + A206 + UI27 + 도구14), HTTP20, lint/typecheck 및 Next/Vite 빌드 통과.
+- 로컬 보고서: test-results/integration/2026-11-25T01-41-25-577Z-b15d59df/report.json
+- 기능 커밋: de986543d8bd1432ff051d21514e02402e30e770
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45527668759
+- Native PostgreSQL 작업 138914912497: success, 34개 통과 (이전32 + 새 HTTP→DB2).
+- 실제 결제 및 배포 후 사용자 채팅 E2E 완료는 아님.
+- CI App, API and UI 작업 138914912857도 success. 두 작업 모두 통과.
+- 최종 자동 검사: 608개 (기본574 + native34), HTTP20, 타입 검사·빌드 통과.
