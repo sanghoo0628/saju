@@ -35,3 +35,15 @@ main / 실제 배포 / 공유 DB / PAYMENTS_ENABLED는 변경하지 않음.
   2) 실제 COMMIT 뒤 응답 지연→503→기존 결제 유지→재시도 중복 없음
 - 로컬 native 테스트는 기존 sandbox 공유 메모리 제한으로 직접 실행하지 않음.
   GitHub CI의 실제 PostgreSQL 결과를 확인해 후속 기록함.
+
+검증 결과
+- 기능 커밋: 445750ef3cb0bc7c1c4efb802a84f4c111f83fdc
+- 최종 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본590개 (B167 + C174 + A208 + UI27 + 도구14), HTTP20, lint/types, Next/Vite 빌드 통과.
+- 로컬 보고서: test-results/integration/2026-11-25T02-04-03-351Z-1c064f3d/report.json
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45530255943
+- Native PostgreSQL concurrency 작업 138923496677: success, 36개 통과.
+  SQL 중간 중단 및 실제 COMMIT 후 응답 지연 재현 포함.
+- CI App, API and UI 작업 138923496329도 success. 두 CI 작업 모두 통과.
+- 최종 자동 테스트626개 (기본590 + native36), HTTP20 및 모든 빌드 통과.
+- main / 실제 결제 / 배포 후 학교 사용자 채팅 E2E는 이번 검증 범위 밖이며 변경하지 않음.
