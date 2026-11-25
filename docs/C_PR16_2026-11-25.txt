@@ -1,0 +1,40 @@
+C 후속 통합 검토 초안 PR — 2026-11-25 KST
+
+PR: https://github.com/sanghoo0628/saju/pull/16
+제목: feat: Groble 웹훅 원장·환불 처리와 비활성 서버 모듈 준비
+상태: open / draft=true / merged=false (GitHub API로 확인)
+base: main 25c3dd1d125496e7b4b4c8f740816d4191ccbe7e
+head: feature/c-groble-event-verification
+검증한 head: e73257364d6aab1ba5b51e759127e0432fb2adc6
+
+이번 변경
+- main 25c3dd1의 환경 변수 중복 제거와 운영 체크리스트를 C 브랜치에 병합.
+- main에 직접 커밋/푸시/병합하지 않음.
+- 운영 체크리스트의 마이그레이션 개수를 현재 파일9개로 맞추고 001/002 및 비활성 연결 조건 추가.
+- 이미 dev에 적용된 20261125000100은 af20f6e와 byte-for-byte 동일함을 재확인.
+- 실제 runtime/웹훅 route/공통 환경 결제 가드는 최신 main과 차이 없음.
+- 실제 결제/배포/공유 DB는 이번 작업에서 변경하지 않음.
+
+검증
+- 최신 main 통합 후 pnpm verify:integration --run 6단계 모두 통과.
+- 기본641개 + native PostgreSQL45개 = 686개 통과, HTTP20 및 lint/typecheck/Next/Vite 빌드 통과.
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45563992387
+- App, API and UI 139034207471 및 Native PostgreSQL 139034207847 모두 success.
+- 로컬 보고서: test-results/integration/2026-11-25T06-52-46-310Z-552913b8/report.json
+
+PR 생성 및 접근
+- GitHub 연결 도구는 생성 권한403(Resource not accessible by integration)으로 실패.
+  자동 승인 검토 거절이 아니라 연결 앱의 API 권한 부족.
+- 사용자의 기존 GitHub 로그인 Safari에서 초안 생성. 소유자/리뷰어 권한이나 계정 보안 설정 변경 없음.
+- 리뷰 요청/멘션/Ready for review/merge/자동 merge를 설정하지 않음.
+- 스크린샷: 로컬 workspace/work/C_DRAFT_PR_2026-11-25.png
+- PR은 생성만으로 병합/결제 활성화되지 않음.
+
+리뷰 및 다음 단계
+1. B: 001 원장과 002 updated_at 후속 적용, 권한/이력 검토.
+2. A/B/C: 부분 환불 및 기존 대화방 정책 확정.
+3. Groble 키/판매자/상품 설정 및 테스트 발송 후 실제 runtime 연결.
+4. 실제 학교 사용자 채팅/실제 결제·환불 E2E 확인.
+5. 초안 해제/병합/운영 배포는 사용자/팀의 후속 지시와 리뷰 후 진행.
+6. 사용자에게 실제 배포 B 요청은 이미 전송됐고 마지막 관측은 수락 대기.
+   같은 요청을 반복 전송하지 않음.
