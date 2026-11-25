@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, afterAll, it, expect } from 'vitest';
+import { createGrobleWebhookHandler } from '../../src/server/groble-webhook-handler';
 import { createGrobleInbox } from '../../src/server/groble-inbox';
 import type { GroblePaymentEvent } from '../../src/server/groble-events';
 import { createPostgresRepository } from '../../src/server/postgres-repository';
@@ -157,4 +158,25 @@ it('full refund before recipient acceptance prevents accepting the pending reque
   await deliver(event('refund','payment.refunded'));
   await expect(service.acceptChat({userId:target},request.id)).rejects.toMatchObject({code:'FORBIDDEN'});
   expect(await scalar('select count(*)::int as value from public.conversations')).toBe(0);
+});
+
+it('HTTP success is returned only with committed event and payment rows',async()=>{
+  const handler=createGrobleWebhookHandler({receive:inbox.receive});
+  const response=await handler(new Request('https://app.example.test/api/webhooks/groble',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(event('http-complete')),
+  }));
+  expect(response.status).toBe(200);
+  expect(await status()).toBe('fulfilled');
+  expect(await scalar('select count(*)::int as value from public.payments')).toBe(1);
+  expect(await scalar("select state as value from private.groble_events where event_id='http-complete'")).toBe('applied');
+});
+it('HTTP accepts a durably stored early refund and late completion leaves the order refunded',async()=>{
+  const handler=createGrobleWebhookHandler({receive:inbox.receive});
+  const send=(value:GroblePaymentEvent)=>handler(new Request('https://app.example.test/api/webhooks/groble',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value),
+  }));
+  expect((await send(event('http-refund','payment.refunded'))).status).toBe(202);
+  expect(await scalar("select state as value from private.groble_events where event_id='http-refund'")).toBe('pending_mapping');
+  expect((await send(event('http-complete'))).status).toBe(200);
+  expect(await status()).toBe('refunded');
 });
