@@ -51,6 +51,8 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check migration filenames before app checks
+        run: pnpm verify:migrations
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -73,5 +75,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check migration filenames before database tests
+        run: pnpm verify:migrations
       - name: Run isolated multi-connection PostgreSQL tests
         run: pnpm test:postgres

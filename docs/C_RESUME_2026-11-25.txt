@@ -115,3 +115,9 @@ B 피드백 후속 저장
 - B match_preferences가 00200 사용 중이라 아직 dev 미적용인 C updated_at만 00500으로 이동. SQL 내용 변경 없음.
 - dev READ ONLY 메타데이터 확인: 00100만 적용, match_preferences 및 groble_events.updated_at 모두 아직 없음.
 - 이미 적용된 C00100은 보존. A quota00300 / birth lock00400 / C timestamp00500 순으로 고유 번호 사용.
+
+마이그레이션 충돌 방지 검사
+- C_MIGRATION_GUARD_2026-11-25.txt 참조. pnpm verify:migrations 추가.
+- C check/통합검증의 첫 단계 및 CI app/postgres 검사 앞에서 로컬 버전 중복·파일 형식을 검사한다.
+- 기본 SQL harness가 통과하더라도 중복 버전은 별도로 실패한다. DB 접근·마이그레이션 적용 없음.
+- 검사 도구 테스트22개, lint/typecheck 로컬 통과. 전체 CI 결과는 해당 코드 커밋 기준으로 확인.
