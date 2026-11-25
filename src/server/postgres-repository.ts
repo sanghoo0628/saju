@@ -1,7 +1,7 @@
 /** Server-only. Never import this module from a browser component. */
 import { Pool, type PoolClient, type PoolConfig } from "pg";
 import type { Repository } from "../../packages/payment-chat/src/ports.ts";
-import { createPostgresTransaction } from "./postgres-transaction";
+import { createPostgresTransaction, type SqlExecutor } from "./postgres-transaction";
 
 export interface TransactionPool {
   connect(): Promise<Pick<PoolClient, "query" | "release">>;
@@ -21,6 +21,9 @@ const RACE_CONSTRAINTS = new Set([
   "payments_pkey",
   "payments_order_id_key",
   "messages_pkey",
+  "groble_events_pkey",
+  "groble_deliveries_pkey",
+  "groble_refunds_pkey",
 ]);
 function retryable(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -43,10 +46,11 @@ function integer(
 }
 
 /** One checked-out connection per attempt, including BEGIN, all queries, and COMMIT/ROLLBACK. */
-export function createPostgresRepository(
+export function createPostgresUnitOfWork<T>(
   pool: TransactionPool,
+  createTransaction: (executor: SqlExecutor) => T,
   options: PostgresRepositoryOptions = {},
-): Repository {
+): { transaction<R>(run: (tx: T) => Promise<R>): Promise<R> } {
   const maxRetries = integer(options.maxRetries ?? 5, 0, 10, "maxRetries");
   const delay = integer(options.retryDelayMs ?? 10, 0, 1000, "retryDelayMs");
   const statementTimeout = integer(
@@ -80,7 +84,7 @@ export function createPostgresRepository(
             [String(statementTimeout), String(lockTimeout)],
           );
           active = true;
-          const tx = createPostgresTransaction({
+          const tx = createTransaction({
             query: async (sql, params) => {
               if (!active) throw new Error("Transaction is no longer active");
               try {
@@ -127,6 +131,11 @@ export function createPostgresRepository(
       }
     },
   };
+}
+
+/** Existing payment/chat repository retains the same transaction semantics. */
+export function createPostgresRepository(pool: TransactionPool, options: PostgresRepositoryOptions = {}): Repository {
+  return createPostgresUnitOfWork(pool, createPostgresTransaction, options);
 }
 
 /** Create once per server process; close only during shutdown/tests, never per request. */

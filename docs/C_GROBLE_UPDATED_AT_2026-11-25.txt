@@ -1,0 +1,42 @@
+B 피드백 후속 — Groble 이벤트 상태 변경 시각 (2026-11-25 KST)
+
+브랜치: feature/c-groble-event-verification
+
+B가 전달한 상태 (이 작업에서 공유 DB를 직접 조회/수정하지 않음)
+- 채팅 테스트용 fulfilled 주문1개 준비. 실제 payments 기록은 만들지 않았다고 확인.
+- 20261125000100을 saju-dev에 이미 적용, 원격 마이그레이션8개라고 전달받음.
+- 따라서 기존 20261125000100 파일의 내용/이름은 그대로 유지.
+- Groble 환불 정책은 계약서8장과 함께 팀 확정 대기. B의 기본안 호응을 최종 확정으로 간주하지 않음.
+
+이번 구현
+- 새 마이그레이션: supabase/migrations/20261125000500_groble_events_updated_at.sql
+- private.groble_events.updated_at timestamptz NOT NULL DEFAULT now().
+- 기존 행은 실제 과거 상태 변경 시각을 알 수 없으므로 created_at으로 초기화.
+- 기존 private.set_updated_at() 함수를 상태/연결 주문 변경 트리거에 재사용.
+- state 또는 order_id가 실제로 달라질 때만 updated_at 갱신.
+- 동일 이벤트 재전달로 같은 상태를 다시 쓰거나 다른 메타데이터만 고칠 때 시각을 덮어쓰지 않음.
+- 기존 RLS/권한/계약 필드/실제 결제 활성화 상태는 그대로.
+- 공유 DB 적용은 수행하지 않음. B가 이 새 파일만 검토 후 적용하면 됨.
+- 기존 적용 파일 이름/내용을 바꾸지 않음. 성별 필터의 적용 순서는 B의 실제 원격 이력에 맞춰 확인.
+
+검증
+- PGlite 마이그레이션 테스트7개 추가: 기본값, 상태 전환, 중복 이벤트, 주문 연결,
+  메타데이터 수정, 브라우저 접근 차단 유지, 기존 행이 있는 DB 업그레이드.
+- 20261125000100이 저장 커밋 af20f6e와 byte-for-byte 동일한지 git diff로 확인.
+- 전체 검사/CI 결과는 후속 기록에 추가.
+
+사용자 승인 및 다음 채팅 검증
+- 사용자: B에게 준비된 테스트 주문으로 대화 요청 보내는 것 명시적 승인.
+- 사용자: 로그인은 나중에 진행한다고 답변. 지금은 로그아웃 /login 상태.
+- 따라서 실제 요청은 아직 보내지 않았음. 로그인 완료 후 같은 상대/목적/테스트 주문이면 재확인 불필요.
+- B가 실제 요청을 수락해야 채팅방/실시간 송수신 검증 가능.
+- 자동 결제/가짜 영수증/로그인 우회/관리자 세션 생성은 하지 않음.
+- 테스트 주문 UUID 등 개인 계정 식별자는 공개 Git 문서 대신 로컬0600 체크포인트에만 보관.
+
+로컬 검증 결과
+- 기본 테스트597개, HTTP20, lint/typecheck 및 Next/Vite 빌드 모두 통과.
+- 보고서: test-results/integration/2026-11-25T04-52-44-980Z-182fdb1c/report.json
+- 기능 커밋: a6458c9027176c345d954ab4ea9a4e98a89bb8d3
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45549844179
+- CI App, API and UI (138988126802) 및 Native PostgreSQL concurrency (138988127074) 모두 success.
+- 최종 자동 검사633개 (기본597 + native36), HTTP20 및 모든 빌드 통과.

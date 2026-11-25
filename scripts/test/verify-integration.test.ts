@@ -8,7 +8,7 @@ import { integrationCases, renderIntegrationChecklist } from '../integration-che
 
 test('default invocation plans checks without selecting execution', () => {
   assert.deepEqual(parseArguments([]), { run: false, postgres: false, help: false });
-  assert.equal(plannedStages().filter(s => s.status === 'planned').length, 6);
+  assert.equal(plannedStages().filter(s => s.status === 'planned').length, 7);
   assert.equal(summary(plannedStages(), false).selectedChecksPassed, false);
 });
 test('unknown and duplicate arguments are rejected without reflecting submitted values', () => {
@@ -28,7 +28,7 @@ test('app keys from both the example and inherited provider variables are blanke
 test('all selected checks can pass while full-flow signoff and manual evidence remain pending', async () => {
   const calls: string[] = [];
   const results = await runSelectedChecks(async stage => { calls.push(stage.id); return { status: 'passed' }; });
-  assert.equal(calls.length, 6); assert.ok(!calls.includes('postgres'));
+  assert.equal(calls.length, 7); assert.ok(!calls.includes('postgres'));
   const report = summary(results, true);
   assert.equal(report.selectedChecksPassed, true); assert.equal(report.fullUserFlowVerified, false);
   assert.ok(report.manualCases.every(c => c.status === 'not_run'));
@@ -43,7 +43,16 @@ test('a failed check stops later checks without retrying it', async () => {
   const results = await runSelectedChecks(async stage => {
     calls.push(stage.id); return stage.id === 'types' ? { status: 'failed', reason: 'nonzero_exit' } : { status: 'passed' };
   });
-  assert.deepEqual(calls, ['lint','types']); assert.equal(results[2]?.reason, 'previous_failure');
+  assert.deepEqual(calls, ['migrations','lint','types']); assert.equal(results[3]?.reason, 'previous_failure');
+  assert.equal(summary(results, true).selectedChecksPassed, false);
+});
+test('a migration collision stops the run before app or database checks', async () => {
+  const calls: string[] = [];
+  const results = await runSelectedChecks(async stage => {
+    calls.push(stage.id); return { status: 'failed', reason: 'nonzero_exit' };
+  }, { postgres: true });
+  assert.deepEqual(calls, ['migrations']);
+  assert.ok(results.slice(1).every(stage => stage.status === 'not_run' && stage.reason === 'previous_failure'));
   assert.equal(summary(results, true).selectedChecksPassed, false);
 });
 test('an executor error is sanitized and stops the pipeline', async () => {
