@@ -1,5 +1,5 @@
 /**
- * 추천받을 상대 성별 (20261124000100_match_preferences, 계약서 8장 2번)
+ * 추천받을 상대 성별 (20261125000200_match_preferences, 계약서 8장 2번)
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { rankCandidates } from "../../src/lib/matching";

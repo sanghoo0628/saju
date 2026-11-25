@@ -5,7 +5,7 @@
 > (PGlite(WASM Postgres)에 Supabase auth/storage 스텁을 만들고 모든 마이그레이션을 적용한 뒤 RLS와 제약을 테스트한다)
 > 2026-11-23 v3: A 사주 입력 저장 계약(9장)과 후속 마이그레이션 `20261123000100` 추가. 기존 6개는 수정하지 않았다.
 > 기존 6개는 개발 DB(saju-dev)에 적용됐고 C 가 실제 연동을 검증했다. `20261123000100` 도 saju-dev 에 적용했다.
-> 2026-11-24 v4: 추천받을 상대 성별(8장 2번 제안) — `match_preferences` 와 후속 마이그레이션 `20261124000100`. **팀 결정 후 머지·적용한다.**
+> 2026-11-24 v4: 추천받을 상대 성별(8장 2번 제안) — `match_preferences` 와 후속 마이그레이션 `20261125000200`. **팀 결정 후 머지·적용한다.**
 
 ## 0. 과금 흐름과 v1 대비 변경
 
@@ -62,7 +62,7 @@ v1 에서 유지한 것: `profiles.id = auth.users.id`, 공개/비공개 테이�
 | `20261116000500_matching_functions.sql` | 후보 선정, 무료 추천 저장·조회 |
 | `20261116000600_storage_profile_photos.sql` | 비공개 사진 버킷과 정책 |
 | `20261123000100_birth_input_and_analysis.sql` | (후속) 음력 원문·시간대·동의 기록, 점수만 저장 허용, fortune_analyses, 사진 5MB·이미지 3종 제한 |
-| `20261124000100_match_preferences.sql` | (후속) match_preferences, `match_candidates` 에 서로의 성별 조건 추가 |
+| `20261125000200_match_preferences.sql` | (후속) match_preferences, `match_candidates` 에 서로의 성별 조건 추가 |
 
 ## 3. 무료 추천 (B)
 
