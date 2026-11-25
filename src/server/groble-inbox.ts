@@ -1,5 +1,6 @@
 /** Server infrastructure only. The runtime remains disconnected until rollout is reviewed. */
 import { createHash } from 'node:crypto';
+import { createDeadlinePool } from './postgres-deadline';
 import type { GroblePaymentEvent } from './groble-events';
 import { createPostgresUnitOfWork, type TransactionPool, type PostgresRepositoryOptions } from './postgres-repository';
 import { createPostgresTransaction } from './postgres-transaction';
@@ -16,10 +17,20 @@ export function createGrobleInbox(options: {
   pool: TransactionPool;
   verify: (raw: Uint8Array, headers: Headers) => Promise<GroblePaymentEvent>;
   transaction?: PostgresRepositoryOptions;
+  /** Absolute receive/connection/query/retry budget, capped at 6.5 seconds. */
+  deadlineMs?: number;
 }) {
-  const database = createPostgresUnitOfWork(options.pool, executor => executor, options.transaction);
+  const deadlineMs = options.deadlineMs ?? 6500;
+  if (!Number.isSafeInteger(deadlineMs) || deadlineMs < 1 || deadlineMs > 6500)
+    throw new Error('Invalid webhook database budget');
   return {
     async receive(raw: Uint8Array, headers: Headers): Promise<GrobleInboxResult> {
+      const pool = createDeadlinePool(options.pool, deadlineMs);
+      const database = createPostgresUnitOfWork(pool, executor => executor, {
+        ...options.transaction,
+        statementTimeoutMs: Math.min(options.transaction?.statementTimeoutMs ?? 4000, 4000),
+        lockTimeoutMs: Math.min(options.transaction?.lockTimeoutMs ?? 1000, 1000),
+      });
       // Authentication precedes both JSON interpretation and the first SQL statement.
       const event = await options.verify(raw, headers);
       const { eventId, idempotencyKey, ...business } = event;

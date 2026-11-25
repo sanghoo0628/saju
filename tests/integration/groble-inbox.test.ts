@@ -180,3 +180,47 @@ it('HTTP accepts a durably stored early refund and late completion leaves the or
   expect((await send(event('http-complete'))).status).toBe(200);
   expect(await status()).toBe('refunded');
 });
+
+it('database deadline destroys the slow transaction, returns HTTP 503, and permits a clean provider retry',async()=>{
+  const slow=createGrobleInbox({verify:parse,deadlineMs:100,transaction:options,pool:{async connect(){
+    const c=await db.pool.connect();
+    const query=new Proxy(c.query.bind(c),{apply(fn,thisArg,args){
+      if(typeof args[0]==='string'&&args[0].startsWith('update private.groble_events'))
+        return c.query('select pg_sleep(1)').then(()=>Reflect.apply(fn,thisArg,args));
+      return Reflect.apply(fn,thisArg,args);
+    }});
+    return {query,release:(discard?:boolean)=>c.release(discard)};
+  }}});
+  const handler=createGrobleWebhookHandler({receive:slow.receive});
+  const response=await handler(new Request('https://app.example.test/api/webhooks/groble',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(event('timed-out')),
+  }));
+  expect(response.status).toBe(503);
+  expect(await status()).toBe('pending');
+  expect(await scalar('select count(*)::int as value from private.groble_events')).toBe(0);
+  expect(await scalar('select count(*)::int as value from public.payments')).toBe(0);
+  expect(await deliver(event('timed-out'))).toMatchObject({state:'applied'});
+  expect(await status()).toBe('fulfilled');
+  expect(await scalar('select count(*)::int as value from public.payments')).toBe(1);
+});
+it('an ambiguous COMMIT timeout returns 503 and provider retry reuses the committed payment',async()=>{
+  const delayed=createGrobleInbox({verify:parse,deadlineMs:500,transaction:options,pool:{async connect(){
+    const c=await db.pool.connect();
+    const query=new Proxy(c.query.bind(c),{apply(fn,thisArg,args){
+      const pending=Reflect.apply(fn,thisArg,args);
+      if(args[0]==='COMMIT')return pending.then((value:unknown)=>new Promise(resolve=>setTimeout(()=>resolve(value),800)));
+      return pending;
+    }});
+    return {query,release:(discard?:boolean)=>c.release(discard)};
+  }}});
+  const handler=createGrobleWebhookHandler({receive:delayed.receive});
+  const response=await handler(new Request('https://app.example.test/api/webhooks/groble',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(event('ambiguous-commit')),
+  }));
+  expect(response.status).toBe(503);
+  // The SQL COMMIT really completed; only the client-visible response was delayed.
+  expect(await status()).toBe('fulfilled');
+  expect(await deliver(event('ambiguous-commit'))).toMatchObject({state:'applied'});
+  expect(await scalar('select count(*)::int as value from public.payments')).toBe(1);
+  expect(await scalar('select count(*)::int as value from private.groble_events')).toBe(1);
+});

@@ -51,8 +51,8 @@ export function createGrobleWebhookHandler(options: {
   /** Total body-read budget. DB deadlines and platform limits must be set independently at rollout. */
   readTimeoutMs?: number;
 }) {
-  const timeout = options.readTimeoutMs ?? 5000;
-  if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 5000) throw new Error('Invalid webhook read budget');
+  const timeout = options.readTimeoutMs ?? 2000;
+  if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 2000) throw new Error('Invalid webhook read budget');
   return async (request: Request): Promise<Response> => {
     if (new URL(request.url).pathname !== '/api/webhooks/groble') return response(404, 'NOT_FOUND');
     if (request.method !== 'POST') return response(405, 'METHOD_NOT_ALLOWED', { Allow: 'POST' });

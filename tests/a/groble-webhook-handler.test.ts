@@ -102,3 +102,6 @@ test('valid authenticated completion reaches persistence boundary and invalid si
   assert.equal((await handler(request(raw,{...headers,'X-Groble-Signature':'0'.repeat(64)}))).status,400);
   assert.equal(stores,1);
 });
+for (const readTimeoutMs of [0, 2001]) test('rejects a body budget outside the webhook limit: '+readTimeoutMs,()=>{
+  assert.throws(()=>createGrobleWebhookHandler({receive:never,readTimeoutMs}),/Invalid webhook read budget/);
+});

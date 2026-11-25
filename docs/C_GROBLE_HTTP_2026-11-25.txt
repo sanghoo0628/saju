@@ -9,7 +9,7 @@ main / 실제 배포 / saju-dev / 결제 활성화 설정은 변경하지 않음
 - 정확한 /api/webhooks/groble 경로, POST, application/json만 수신.
 - 로그인 쿠키/학교 사용자/브라우저 Origin에 의존하지 않음. 인증은 주입한 수신부의 원문 서명 검증.
 - 256KiB 제한을 실제 스트림에도 적용. 허위 Content-Length로 제한을 우회할 수 없음.
-- 본문 수신에 기본 5초 제한. 업로드 정지/초과 시 스트림을 취소하고 저장 호출하지 않음.
+- 본문 수신에 기본 2초 제한. 업로드 정지/초과 시 스트림을 취소하고 저장 호출하지 않음.
 - 원문 바이트와 헤더를 재직렬화 없이 inbox.receive로 전달.
 - receive가 DB COMMIT 후 resolve해야만 응답. 백그라운드 처리 예약을 성공으로 간주하지 않음.
 - applied=200, 영속 저장된 pending_mapping/review_required=202.
@@ -32,7 +32,7 @@ const handler = createGrobleWebhookHandler({
 3. 기존 Next route와 payment-chat-runtime이 위 handler를 호출하도록 별도 연결.
    현재는 unavailablePaymentGateway 그대로이며 새 handler가 배포 경로를 대체하지 않음.
 4. 전체 10초 응답 예산을 위한 연결/쿼리/재시도/플랫폼 타임아웃 검증 필요.
-   본문 5초 제한만으로 DB 작업 전체의 10초 제한을 보장하지는 않음.
+   본문 2초 제한만으로 DB 작업 전체의 10초 제한을 보장하지는 않음.
    DB 처리 중 Promise.race로 성공/실패를 먼저 응답하거나 무제한 백그라운드 작업으로 넘기지 않음.
 5. 실제 서명 테스트 발송으로 이벤트 저장·재전송·역순 처리와 2xx/실패 응답 검증.
 6. 실제 결제/환불 테스트 및 부분 환불/기존 대화 정책 합의 후 활성화.
