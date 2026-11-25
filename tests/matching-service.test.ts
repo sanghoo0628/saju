@@ -11,6 +11,7 @@ import {
   type FortuneInputForStorage,
 } from "../src/server/matching-service";
 import { computeScore, type BirthInput } from "../src/lib/score";
+import type { PreferredGender } from "../src/contracts/matching";
 
 const ME = "11111111-1111-4111-8111-111111111111";
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -21,6 +22,7 @@ function memoryStore() {
   const scores = new Map<string, number>();
   const births = new Map<string, BirthInputWrite>();
   const analyses = new Map<string, FortuneAnalysisWrite>();
+  const prefs = new Map<string, PreferredGender>();
   let recs: StoredMatchResult[] = [];
   const store: MatchingStore = {
     profile: async (id) => profiles.get(id),
@@ -40,11 +42,16 @@ function memoryStore() {
       profiles.set(row.userId, saved);
       return saved;
     },
+    matchPreference: async (id) => prefs.get(id) ?? "any",
+    saveMatchPreference: async (id, pref) => {
+      if (!profiles.has(id)) throw new Error("profile required (FK)");
+      prefs.set(id, pref);
+    },
     getOrCreateMatchResults: async () => recs,
     profiles: async (ids) => ids.map((id) => profiles.get(id)).filter((p): p is ProfileRow => !!p),
     signPhotoUrls: async (paths) => new Map(paths.map((p) => [p, `https://signed.example/${p}?token=x`])),
   };
-  return { store, profiles, scores, births, analyses, setRecs: (r: StoredMatchResult[]) => (recs = r) };
+  return { store, profiles, scores, births, analyses, prefs, setRecs: (r: StoredMatchResult[]) => (recs = r) };
 }
 
 const profile = (userId: string, extra: Partial<ProfileRow> = {}): ProfileRow => ({
@@ -71,6 +78,14 @@ describe("parseUpdateProfile", () => {
     });
   });
 
+  it("추천받을 상대 성별은 any/male/female 만 받는다", () => {
+    for (const preferredGender of ["any", "male", "female"] as const) {
+      expect(parseUpdateProfile({ nickname: "호랑이", isPublic: true, preferredGender }, ME)).toEqual({
+        nickname: "호랑이", isPublic: true, preferredGender,
+      });
+    }
+  });
+
   it("생략한 항목은 결과에 넣지 않는다 (기존 값 유지용)", () => {
     expect(parseUpdateProfile({ nickname: "호랑이", isPublic: false }, ME)).toEqual({ nickname: "호랑이", isPublic: false });
   });
@@ -81,6 +96,8 @@ describe("parseUpdateProfile", () => {
     [{ nickname: "ab", bio: "x".repeat(301), isPublic: true }, "긴 소개"],
     [{ nickname: "ab" }, "공개 동의 누락"],
     [{ nickname: "ab", isPublic: true, gender: "other" }, "성별 값"],
+    [{ nickname: "ab", isPublic: true, preferredGender: "other" }, "추천 상대 성별 값"],
+    [{ nickname: "ab", isPublic: true, preferredGender: null }, "추천 상대 성별 null"],
     [{ nickname: "ab", isPublic: true, interests: Array.from({ length: 11 }, (_, i) => `i${i}`) }, "관심사 개수"],
     [{ nickname: "ab", isPublic: true, track: "other" }, "계열 값"],
     [{ nickname: "ab", isPublic: true, userId: A }, "사용자 ID 입력"],
@@ -197,6 +214,40 @@ describe("updateProfile (PUT /api/profile)", () => {
     m.scores.set(ME, -4200);
     const third = await svc.updateProfile(ME, { nickname: "cd", isPublic: true, photoPath: null, major: null });
     expect(third).toMatchObject({ track: "science", photoUrl: null, major: null });
+  });
+
+  it("추천받을 상대 성별: 처음은 any, 보낸 값만 저장하고 생략하면 유지한다", async () => {
+    const m = memoryStore();
+    const svc = createMatchingService(m.store);
+    m.scores.set(ME, 4200);
+    expect((await svc.updateProfile(ME, { nickname: "ab", isPublic: true })).preferredGender).toBe("any");
+    expect(m.prefs.has(ME)).toBe(false);
+    expect((await svc.updateProfile(ME, { nickname: "ab", isPublic: true, preferredGender: "female" })).preferredGender).toBe("female");
+    expect((await svc.updateProfile(ME, { nickname: "cd", isPublic: true })).preferredGender).toBe("female");
+    expect((await svc.profileState(ME)).profile?.preferredGender).toBe("female");
+    expect((await svc.myProfile(ME))?.preferredGender).toBe("female");
+  });
+
+  it("첫 저장에서도 프로필을 먼저 만든 뒤 추천 조건을 저장한다 (profiles 참조)", async () => {
+    const m = memoryStore();
+    const svc = createMatchingService(m.store, { scoreSecret: SECRET });
+    await svc.recordBirthInput(ME, solar);
+    const saved = await svc.updateProfile(ME, { nickname: "ab", isPublic: true, track: "science", preferredGender: "male" });
+    expect(saved.preferredGender).toBe("male");
+    expect(m.prefs.get(ME)).toBe("male");
+  });
+
+  it("추천받을 상대 성별은 다른 사람의 추천 카드에 나오지 않는다", async () => {
+    const m = memoryStore();
+    const svc = createMatchingService(m.store);
+    m.scores.set(ME, 3500);
+    m.profiles.set(ME, profile(ME));
+    m.profiles.set(A, profile(A));
+    m.prefs.set(A, "female");
+    m.setRecs([{ id: "r1", targetId: A, rank: 1 }]);
+    const res = await svc.matchResults(ME);
+    expect(res.results[0]!.profile).not.toHaveProperty("preferredGender");
+    expect(JSON.stringify(res)).not.toContain("preferred");
   });
 });
 

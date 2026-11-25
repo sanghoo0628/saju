@@ -10,6 +10,12 @@ import type { Track } from "../lib/score";
 export type Gender = "male" | "female";
 
 /**
+ * 추천받을 상대 성별. 본인만 보고 바꿀 수 있다 (다른 사람의 프로필 카드에는 없음).
+ * any = 상관없음. 서로의 조건을 모두 만족해야 추천된다.
+ */
+export type PreferredGender = "any" | Gender;
+
+/**
  * 다른 사용자에게 보여주는 프로필 카드.
  * 생년월일·출생 시간·출생지·학교 이메일·점수·사주 원문은 포함하지 않는다.
  */
@@ -69,11 +75,15 @@ export interface UpdateProfileRequest {
   interests?: string[];
   /** null 이면 사진 삭제 */
   photoPath?: string | null;
+  /** 추천받을 상대 성별. 생략하면 기존 값 유지 (처음에는 any) */
+  preferredGender?: PreferredGender;
 }
 
 /** PUT /api/profile 응답, ProfileStateResponse.profile */
 export interface MyProfileResponse extends ProfileCard {
   isPublic: boolean;
+  /** 본인에게만 내려준다 */
+  preferredGender: PreferredGender;
 }
 
 /**
