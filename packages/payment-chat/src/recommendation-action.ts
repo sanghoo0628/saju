@@ -1,7 +1,7 @@
 import type { InboxSnapshot } from './inbox-session.ts';
 
 export type RecommendationAction =
-  | { kind: 'navigate'; label: string; href: string }
+  | { kind: 'navigate'; label: string; href: string; recheckPermission?: true }
   | { kind: 'checkout'; label: string }
   | { kind: 'disabled'; label: string };
 
@@ -21,7 +21,9 @@ export function recommendationAction(userId: string, peerId: string, inbox: Inbo
     label: request.status === 'pending'
       ? request.to === userId ? '받은 대화 요청 확인 · 무료' : '수락 대기 중 · 요청 확인'
       : request.status === 'accepted' ? '수락된 대화 요청 확인' : '대화 요청 결과 확인',
-    href: `/requests?request=${encodeURIComponent(request.id)}` };
+    href: `/requests?request=${encodeURIComponent(request.id)}`,
+    ...(request.from === userId && request.status === 'pending' && !inbox.loading && !inbox.error
+      && inbox.requestsComplete && inbox.roomsComplete ? { recheckPermission: true as const } : {}) };
   if (inbox.loading) return { kind: 'disabled', label: '대화 상태 확인 중' };
   if (inbox.error) return { kind: 'disabled', label: '대화 상태 다시 확인 필요' };
   if (!inbox.requestsComplete || !inbox.roomsComplete)

@@ -12,7 +12,7 @@ const ready: MatchResultsResponse = { status: 'ready', results: [{ id: 'match-1'
   profile: { userId: 'bob', nickname: '공개 별명', gender: null, university: null, major: null, bio: '', interests: [], track: 'science', photoUrl: null } }] };
 function render(matches = ready, state = inbox()) {
   return renderToStaticMarkup(createElement(MatchRecommendations, { userId: 'alice', matches, loading: false, error: '', inbox: state,
-    onReloadMatches: () => {}, onReloadInbox: () => {}, onStartMatch: () => {} }));
+    onReloadMatches: () => {}, onReloadInbox: () => {}, onStartMatch: () => {}, onCheckPermission: () => {} }));
 }
 
 it('offers matching birth storage even while the fortune provider is unavailable', () => {
@@ -27,6 +27,7 @@ it('a pending request renders a detail link without a checkout button', () => {
   const html = render(ready, inbox({ requests: [{ id: 'request-1', from: 'alice', to: 'bob', orderId: 'order-1', status: 'pending', createdAt: '2026-11-26T00:00:00Z' }] }));
   expect(html).toContain('href="/requests?request=request-1"');
   expect(html).toContain('수락 대기 중 · 요청 확인'); expect(html).not.toContain('대화 권한 확인 · 500원');
+  expect(html).toContain('결제 상태·대화 권한 확인');
 });
 it('an existing room renders an accessible free conversation link', () => {
   const html = render(ready, inbox({ rooms: [{ id: 'room-1', members: ['alice', 'bob'], createdAt: '2026-11-26T00:00:00Z' }] }));

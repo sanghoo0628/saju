@@ -28,7 +28,7 @@ test('an existing room takes precedence over requests and a transient refresh er
 
 test('both sent and received pending requests navigate to their detail instead of checkout', () => {
   assert.deepEqual(recommendationAction('alice', 'bob', inbox({ requests: [request] })),
-    { kind: 'navigate', label: '수락 대기 중 · 요청 확인', href: '/requests?request=request-1' });
+    { kind: 'navigate', label: '수락 대기 중 · 요청 확인', href: '/requests?request=request-1', recheckPermission: true });
   assert.deepEqual(recommendationAction('alice', 'bob', inbox({ requests: [{ ...request, id: 'incoming', from: 'bob', to: 'alice' }, request] })),
     { kind: 'navigate', label: '받은 대화 요청 확인 · 무료', href: '/requests?request=incoming' });
 });
@@ -38,6 +38,28 @@ test('completed requests go to their outcome without assuming a refund or anothe
     const action = recommendationAction('alice', 'bob', inbox({ requests: [{ ...request, status }] }));
     assert.equal(action.kind, 'navigate');
     assert.ok(!action.label.includes('500') && !action.label.includes('환불'));
+    assert.equal(action.kind === 'navigate' && action.recheckPermission, undefined);
+  }
+});
+
+test('a refunded unanswered request retains an explicit server recheck path to a replacement order', async () => {
+  const f = fixture(), oldOrder = await f.paid();
+  const invitation = await f.service.requestChat(alice, oldOrder);
+  await f.repository.transaction(async tx => {
+    const old = await tx.order(oldOrder);
+    if (!old) throw new Error('Missing fixture order');
+    await tx.saveOrder({ ...old, status: 'refunded' });
+  });
+  const action = recommendationAction('alice', 'bob', inbox({ requests: [invitation] }));
+  assert.equal(action.kind === 'navigate' && action.recheckPermission, true);
+  const replacement = await f.service.createOrder(alice, 'a-b');
+  assert.equal(replacement.kind, 'payment_required');
+  assert.notEqual(replacement.orderId, oldOrder);
+  // Merely checking the new order has not recorded or charged a second payment.
+  assert.equal(f.state.payments.length, 1);
+  for (const state of [inbox({ requests: [invitation], loading: true }), inbox({ requests: [invitation], error: 'offline' })]) {
+    const limited = recommendationAction('alice', 'bob', state);
+    assert.equal(limited.kind === 'navigate' && limited.recheckPermission, undefined);
   }
 });
 

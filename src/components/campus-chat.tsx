@@ -138,6 +138,11 @@ export function CampusChat({ userId, view, initialRoomId, initialRequestId }: { 
     const next = recommendationAction(userId, result.profile.userId, inbox);
     if (next.kind === 'disabled') return;
     if (next.kind === 'navigate') { router.push(next.href); return; }
+    checkPermission(result);
+  }
+  function checkPermission(result: MatchResultCard) {
+    const next = recommendationAction(userId, result.profile.userId, inbox);
+    if (next.kind === 'disabled' || (next.kind === 'navigate' && !next.recheckPermission)) return;
     setSelected(result); setActionError(''); setPaymentOpen(true);
     // New checkout is unavailable until Groble is configured. C rolls back failed checkout creation.
     void flowRef.current?.start(result.id);
@@ -182,7 +187,7 @@ export function CampusChat({ userId, view, initialRoomId, initialRequestId }: { 
     {actionError ? <p className="inline-error" role="alert">{actionError}</p> : null}
     {view === 'matches' ? <MatchRecommendations userId={userId} matches={matches} loading={matchLoading} error={matchError} inbox={inbox}
       onReloadMatches={() => { setMatchLoading(true); setMatchError(''); setReload(value => value + 1); }}
-      onReloadInbox={() => { void sessionRef.current?.refresh(true); }} onStartMatch={start} /> : view === 'return' ? <div className="campus-empty"><p>결제창의 성공 표시 대신 서버에 저장된 주문 상태를 확인해요. 이 브라우저에 저장된 주문이 없다면 추천 화면에서 기존 주문을 확인해주세요.</p><Link href="/matches">무료 추천으로 돌아가기</Link></div> :
+      onReloadInbox={() => { void sessionRef.current?.refresh(true); }} onStartMatch={start} onCheckPermission={checkPermission} /> : view === 'return' ? <div className="campus-empty"><p>결제창의 성공 표시 대신 서버에 저장된 주문 상태를 확인해요. 이 브라우저에 저장된 주문이 없다면 추천 화면에서 기존 주문을 확인해주세요.</p><Link href="/matches">무료 추천으로 돌아가기</Link></div> :
       <ChatPanel currentUserId={userId} profiles={profiles} api={api} rooms={inbox.rooms} requests={inbox.requests}
         messageSource={messageSource} selection={selection} listLoading={inbox.loading} listError={inbox.error}
         listHasMore={!inbox.requestsComplete || !inbox.roomsComplete} onReload={() => { void sessionRef.current?.refresh(true); }}

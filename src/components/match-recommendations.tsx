@@ -7,7 +7,7 @@ import { recommendationAction } from '../../packages/payment-chat/src/recommenda
 import { Busy } from '../../packages/payment-chat-ui/src/ui';
 import { MatchProfilePhoto } from './match-profile-photo';
 
-export function MatchRecommendations({ userId, matches, loading, error, inbox, onReloadMatches, onReloadInbox, onStartMatch }: {
+export function MatchRecommendations({ userId, matches, loading, error, inbox, onReloadMatches, onReloadInbox, onStartMatch, onCheckPermission }: {
   userId: string;
   matches: MatchResultsResponse | null;
   loading: boolean;
@@ -16,6 +16,7 @@ export function MatchRecommendations({ userId, matches, loading, error, inbox, o
   onReloadMatches: () => void;
   onReloadInbox: () => void;
   onStartMatch: (result: MatchResultCard) => void;
+  onCheckPermission: (result: MatchResultCard) => void;
 }) {
   return <section aria-label="무료 추천 프로필">
     <p className="campus-payment-status">새 결제는 연결 준비 중이에요. 이미 열린 대화와 받은 요청은 추가 결제 없이 이용할 수 있어요.</p>
@@ -33,6 +34,8 @@ export function MatchRecommendations({ userId, matches, loading, error, inbox, o
         <div className="tags">{result.profile.interests.map(interest => <span key={interest}>{interest}</span>)}</div>
         {next.kind === 'navigate' ? <Link className="button primary" href={next.href}>{next.label}</Link>
           : <button className="primary" disabled={next.kind === 'disabled'} onClick={() => onStartMatch(result)}>{next.label}</button>}
+        {next.kind === 'navigate' && next.recheckPermission
+          ? <button className="secondary" onClick={() => onCheckPermission(result)}>결제 상태·대화 권한 확인</button> : null}
       </article>;
     })}</div></> : null}
   </section>;
