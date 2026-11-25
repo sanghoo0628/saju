@@ -79,7 +79,7 @@ export function createHrumFortuneProvider({ apiKey, fetcher = fetch }: {
     // This pins our adapter contract snapshot; HRUM does not expose a manseryeok engine version.
     version: "hrum_adapter_2026_11_16_v1",
     mode: "provider",
-    async calculate(input, { signal }) {
+    async calculate(input, { signal, claimCall }) {
       if (input.externalProviderConsent !== "hrum_birth_data_v1") {
         return { status: "not_ready", reasonCode: "EXTERNAL_CONSENT_REQUIRED", message: "HRUM으로 사주 계산 입력을 전송하는 데 동의해 주세요." };
       }
@@ -87,6 +87,10 @@ export function createHrumFortuneProvider({ apiKey, fetcher = fetch }: {
       if (!apiKey.trim()) {
         return { status: "not_ready", reasonCode: "PROVIDER_NOT_CONFIGURED", message: "사주 공급자 연결 설정이 필요합니다." };
       }
+      if (signal.aborted) return failure("PROVIDER_TIMEOUT", true);
+      // Claim today's quota only after every local precheck, right before the billed request.
+      const denied = await claimCall?.();
+      if (denied) return failure(denied, denied === "PROVIDER_UNAVAILABLE");
       if (signal.aborted) return failure("PROVIDER_TIMEOUT", true);
       let response: Response;
       try {

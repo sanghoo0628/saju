@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const matchingStorage = await storage;
     const status = result.status === 'ready' ? 200 : result.status === 'not_ready'
       ? (result.reasonCode === 'PROVIDER_NOT_CONFIGURED' ? 503 : 422)
-      : result.code === 'PROVIDER_INPUT_REJECTED' ? 422 : result.code === 'PROVIDER_RATE_LIMITED' ? 429
+      : result.code === 'PROVIDER_INPUT_REJECTED' ? 422 : ['PROVIDER_RATE_LIMITED', 'DAILY_LIMIT_REACHED', 'SERVICE_DAILY_LIMIT_REACHED'].includes(result.code) ? 429
       : result.code === 'PROVIDER_TIMEOUT' ? 504 : 502;
     return json({ ...result, matchingStorage }, status);
   });

@@ -2,7 +2,8 @@ import type { FortuneInput } from "./schema";
 import type { NormalizedChart } from "./normalization";
 
 export type FortuneErrorCode = "PROVIDER_UNAVAILABLE" | "PROVIDER_TIMEOUT" | "PROVIDER_RATE_LIMITED" | "INVALID_PROVIDER_RESPONSE"
-  | "PROVIDER_AUTH_FAILED" | "PROVIDER_QUOTA_EXCEEDED" | "PROVIDER_INPUT_REJECTED";
+  | "PROVIDER_AUTH_FAILED" | "PROVIDER_QUOTA_EXCEEDED" | "PROVIDER_INPUT_REJECTED"
+  | "DAILY_LIMIT_REACHED" | "SERVICE_DAILY_LIMIT_REACHED";
 export type FortuneNotReadyCode = 'PROVIDER_NOT_CONFIGURED' | 'PROVIDER_INPUT_UNSUPPORTED' | 'EXTERNAL_CONSENT_REQUIRED';
 
 export type FortuneResult =
@@ -31,7 +32,11 @@ export interface FortuneProvider {
   readonly id: string;
   readonly version: string;
   readonly mode: "mock" | "provider";
-  calculate(input: FortuneInput, options: { signal: AbortSignal }): Promise<ProviderResult>;
+  /**
+   * claimCall must be awaited right before a billed external request (after local prechecks).
+   * It returns null when the call may proceed, or the error code to return instead.
+   */
+  calculate(input: FortuneInput, options: { signal: AbortSignal; claimCall?: () => Promise<FortuneErrorCode | null> }): Promise<ProviderResult>;
 }
 
 // B can replace the ephemeral implementation with an owner-scoped repository.

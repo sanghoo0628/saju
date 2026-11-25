@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const analysisStorage = await storeMatchingAnalysisIfConsented(user.id, input, result, getFortuneStorageRecorder);
     const status = result.status === 'ready' ? 200
       : result.reasonCode === 'PROVIDER_NOT_CONFIGURED' ? 503
-      : result.reasonCode === 'PROVIDER_RATE_LIMITED' ? 429
+      : ['PROVIDER_RATE_LIMITED', 'DAILY_LIMIT_REACHED', 'SERVICE_DAILY_LIMIT_REACHED'].includes(result.reasonCode) ? 429
       : result.reasonCode === 'PROVIDER_TIMEOUT' ? 504
       : ['PROVIDER_UNAVAILABLE', 'PROVIDER_AUTH_FAILED', 'PROVIDER_QUOTA_EXCEEDED', 'INVALID_PROVIDER_RESPONSE'].includes(result.reasonCode) ? 502
       : 422;

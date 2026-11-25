@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 const optionalText = z.preprocess((v) => v === '' ? undefined : v, z.string().optional());
 const optionalUrl = z.preprocess((v) => v === '' ? undefined : v, z.url().optional());
+const dailyLimit = (fallback: number) => z.preprocess((v) => v === '' || v === undefined ? undefined : v,
+  z.coerce.number().int().min(1).max(100000).default(fallback));
 const flag = z.enum(['true', 'false']).default('false').transform(v => v === 'true');
 
 export class ConfigurationError extends Error {
@@ -22,6 +24,9 @@ const serverSchema = z.object({
   SAJU_FINGERPRINT_SECRET: optionalText,
   SAJU_API_BASE_URL: optionalUrl,
   SAJU_API_KEY: optionalText,
+  // Daily billed HRUM calls (Asia/Seoul day). Per user and whole project; shared by all fortune routes.
+  FORTUNE_DAILY_USER_LIMIT: dailyLimit(5),
+  FORTUNE_DAILY_TOTAL_LIMIT: dailyLimit(15),
   PAYMENTS_ENABLED: flag,
   MOCK_PAYMENTS_ENABLED: flag,
   MATCHING_STRATEGY: z.enum(['legacy_demo_v1', 'saju_hybrid_v0_1']).optional(),

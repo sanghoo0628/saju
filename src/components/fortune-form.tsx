@@ -25,6 +25,8 @@ function BirthStorageNotice({ status, onConsentAndRetry, busy, canRetry }: { sta
 function matchingNotReadyMessage(result: Extract<MatchingFortuneInput, { status: 'not_ready' }>) {
   if (result.reasonCode === 'EXTERNAL_CONSENT_REQUIRED') return 'HRUM에 출생 정보를 전송하는 동의를 확인해 주세요.';
   if (result.reasonCode === 'PROVIDER_RATE_LIMITED') return '요청이 많아 잠시 후 다시 준비할 수 있어요.';
+  if (result.reasonCode === 'DAILY_LIMIT_REACHED') return '오늘 사용할 수 있는 사주 계산 횟수를 모두 사용했어요. 내일 다시 준비할 수 있어요.';
+  if (result.reasonCode === 'SERVICE_DAILY_LIMIT_REACHED') return '오늘 사주 계산 이용량이 많아 잠시 멈췄어요. 내일 다시 준비할 수 있어요.';
   if (result.retryable) return '사주 서비스 응답이 지연되었어요. 잠시 후 다시 시도해 주세요.';
   return '3주 분석의 필수 정보나 계산 기준이 준비되지 않았어요.';
 }
