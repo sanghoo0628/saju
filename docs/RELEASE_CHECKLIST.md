@@ -1,7 +1,7 @@
 # 운영 준비 체크리스트
 
 운영 Supabase 프로젝트와 운영 Vercel 배포를 만들 때 이 순서대로 확인합니다.
-개발 환경(saju-dev + https://saju-ebon-psi.vercel.app)은 2026-11-24 기준 이 목록과 같게 맞춰져 있습니다.
+개발 검증 환경은 saju-dev + https://saju-ebon-psi.vercel.app 입니다. 아래 항목 전체가 완료됐다는 뜻은 아니며, 실제 준비 여부를 확인해 체크합니다.
 실제 키·비밀번호는 이 문서, PR, 단체방에 적지 않습니다.
 
 담당: A = 우민, B = 상후, C = 정우
@@ -9,12 +9,12 @@
 ## 1. Supabase 프로젝트 (B)
 
 - [ ] 새 프로젝트 생성. 지역은 Vercel 함수 지역(`vercel.json` 의 `sin1`, 싱가포르)과 가까운 곳
-- [ ] 마이그레이션 7개 적용. 기존 파일은 고치지 않고 새 파일만 추가합니다.
+- [ ] 마이그레이션 9개 적용. 기존 파일은 고치지 않고 새 파일만 추가합니다.
   ```bash
   npx supabase link --project-ref <운영 프로젝트 ref>
-  npx supabase db push --dry-run   # 7개가 나오는지 확인
+  npx supabase db push --dry-run   # 9개가 나오는지 확인
   npx supabase db push
-  npx supabase migration list      # local·remote 7개 일치 확인
+  npx supabase migration list      # local·remote 9개 일치 확인
   ```
   | 파일 | 내용 |
   |---|---|
@@ -25,6 +25,9 @@
   | `20261116000500_matching_functions` | 추천 계산 함수 |
   | `20261116000600_storage_profile_photos` | `profile-photos` 버킷과 정책 |
   | `20261123000100_birth_input_and_analysis` | 음력 입력·저장 동의·3주 분석, 사진 5MB·이미지 3종 제한 |
+  | `20261125000100_groble_event_inbox` | 비공개 결제 이벤트·전송·환불 원장 |
+  | `20261125000200_groble_events_updated_at` | 이벤트 상태/연결 주문 변경 시각 |
+- [ ] 이 브랜치의 파일은 9개입니다. 다른 팀의 후속 파일이 추가되면 개수와 순서를 다시 확인합니다. saju-dev는 최근 읽기 전용 검사에서 `001`까지 적용, `002` 미적용으로 확인됐습니다. 기존 적용 파일을 수정하지 않고 후속 파일로 적용합니다.
 - [ ] **Database → Publications** 에서 `supabase_realtime` 에 `messages` 가 들어 있는지 확인 (채팅 실시간 수신)
 - [ ] **Storage** 에 `profile-photos` 버킷이 비공개로 있는지 확인
 - [ ] **Database → Settings → SSL Configuration** 에서 CA 인증서 다운로드 → Vercel `DATABASE_SSL_CA_PEM` 에 사용
@@ -80,6 +83,8 @@
 
 - [ ] 실제 학교 계정: 로그인 → 사주(HRUM) → 매칭용 저장 동의 → `/profile` 저장 → `/matches` 무료 추천
 - [ ] 두 계정: 대화 요청 → 수락 → `/chat` 실시간 송수신, 차단
+- [ ] C 준비 코드 병합만으로 결제가 켜지지는 않습니다. 현재 런타임·공통 환경 검증의 비활성 가드는 유지됩니다. `C_GROBLE_MODULE_2026-11-25.txt`에 따라 정책 합의·키/DB 준비·런타임 연결·테스트 발송을 별도로 확인합니다.
+- [ ] `C_GROBLE_READONLY_PROJECT_REF=<운영 ref> pnpm verify:groble:readonly`로 DB 준비 상태와 `attentionRequired`를 확인합니다. 이 결과가 결제 활성화/E2E 완료를 뜻하지는 않습니다.
 - [ ] Groble 500원 테스트 결제 → 주문 확정 → 요청 → 수락 → 채팅, 실패·환불 흐름 (C)
 - [ ] 계약서 8장 팀 결정 반영 (`docs/CONTRACT_profile_matching.md`)
 - [ ] 개발 DB 테스트 계정·데이터가 운영 DB 에 없는지 확인
