@@ -53,3 +53,11 @@ C Groble 읽기 전용 운영 점검 — 2026-11-25 KST
 - B가 테스트 대화 요청을 수락하면 실제 채팅 송수신 확인. 요청은 이미 전송됐으며 반복 전송하지 않음.
 - B에게 002 미적용 결과 공유 후 적용 여부 확인. 직접 적용하지 않음.
 - Groble 답변 후 HTTP runtime 연결/실제 서명 발송/결제·환불 E2E.
+
+로컬 전체 검증
+- 기본 테스트624개 (B201 + C174 + A208 + UI27 + 도구14), HTTP20, lint/types 및 Next/Vite 빌드 통과.
+- 보고서: test-results/integration/2026-11-25T06-22-13-392Z-f402737c/report.json
+- 기능 커밋: 267bbedc2d73f83993c40cf73051823590be3b1e
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45560222774
+- CI Native PostgreSQL (139021880424) 및 App, API and UI (139021880796) 모두 success.
+- 최종 자동 검사660개 (기본624 + native36), HTTP20 및 모든 빌드 통과.
