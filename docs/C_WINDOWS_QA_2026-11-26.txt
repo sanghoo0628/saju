@@ -1,0 +1,32 @@
+C 후속 수정 및 dev 읽기 전용 점검 — 2026-11-26 (한국 시간)
+
+기준
+- main 2c987b0: PR14/15/16/17 병합을 GitHub 및 실제 Git 이력으로 확인.
+- 새 브랜치 fix/c-windows-migration-test. main 직접 변경 없음.
+- 코드 커밋 7cc1f7aab74ed76c31cd878d22e9febf16b27d64.
+
+Windows 테스트 수정
+- SQL 디렉터리 검사와 심볼릭 링크 검사를 분리. 디렉터리 검사는 항상 실행.
+- 심볼릭 링크를 만들 때 Windows(win32)의 EPERM만 해당 테스트 skip 후 반환.
+- 다른 플랫폼/다른 오류는 다시 throw. 테스트 임시 파일은 finally에서 정리.
+- 검사기 본체의 파일·심볼릭 링크 거부 정책은 변경하지 않음.
+- Windows CI 추가: 앱 의존성 설치 없이 Node24로 실제 파일 검사 및 테스트 실행.
+
+검증
+- 로컬 검사 도구23개, lint/typecheck 통과.
+- CI https://github.com/sanghoo0628/saju/actions/runs/45649029522
+- Linux: 기본685 + native PostgreSQL45 = 730개, HTTP20, lint/typecheck/build/demo 통과.
+- Windows: 검사기 실행 성공, 테스트8개 통과(스킵0). CI 계정은 symlink 생성 권한이 있어 EPERM 분기는 실제로 발생하지 않았음. B의 권한 없는 Windows에서 재실행하면 해당 검사만 skip되어야 함.
+
+dev DB (READ ONLY)
+- 20261125000100~00500의 적용 이력 확인. Groble 원장/updated_at/RLS/인덱스/브라우저 권한 회수/service_role 및 역할 복구 점검 통과.
+- databaseReady=true는 DB 준비 상태이며 paymentActivationChecked=false. 실제 결제 연결 완료를 뜻하지 않음.
+- 공유 DB 쓰기0, 실제 HRUM/Groble 호출0.
+- 기존에 승인받아 전송한 B 테스트 요청: pending, 주문fulfilled/500, 차단없음, 대화방없음, payments0.
+- 중복 요청·알림·채팅 메시지는 전송하지 않음. B가 기존 요청 수락 후 두 계정 송수신 QA를 이어가면 됨.
+- 실제 주문/계정 식별자는 이 문서에 저장하지 않음.
+
+다음
+- B가 새 수정 브랜치를 검토/병합. main/운영 배포는 이번 작업에서 변경하지 않음.
+- B의 기존 요청 수락 후 사용자 계정으로 실제 채팅 QA 진행.
+- A HRUM 키 및 실제 호출, Groble 응답/키/실결제·환불 검증은 별도.
