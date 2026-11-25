@@ -1,17 +1,17 @@
 import "server-only";
 import { MATCHING_STORAGE_CONSENT_VERSION, type FortuneInput } from "./schema";
 import type { MatchingFortuneInput, ReadyMatchingFortuneInput } from "./matching-input";
-import type { FortuneResult } from "./types";
 
 /**
  * Result of the optional matching storage step, returned next to the fortune result.
  * - stored: B saved the input/analysis.
  * - not_consented: the user did not opt in; nothing was sent to B.
- * - skipped: the calculation was not ready, so nothing was saved.
+ * - skipped: (3-pillar analysis only) the analysis was not ready, so nothing was saved.
+ * - calendar_unsupported: matching birth dates are solar-only for now; lunar input is not stored.
  * - unavailable: matching storage is not configured on this server.
  * - failed: B rejected or could not save it. The fortune result is still returned.
  */
-export type MatchingStorageStatus = "stored" | "not_consented" | "skipped" | "unavailable" | "failed";
+export type MatchingStorageStatus = "stored" | "not_consented" | "skipped" | "calendar_unsupported" | "unavailable" | "failed";
 export interface MatchingStorageOutcome { status: MatchingStorageStatus }
 
 /** Only the fields B needs for the fixed score. Birth time, sex option and calculation options stay out. */
@@ -34,11 +34,12 @@ export function toBirthInputForStorage(input: FortuneInput): BirthInputForStorag
 
 async function record(
   consented: boolean,
-  ready: boolean,
+  ready: boolean | "calendar_unsupported",
   getRecorder: () => FortuneStorageRecorder,
   write: (recorder: FortuneStorageRecorder) => Promise<void>,
 ): Promise<MatchingStorageOutcome> {
   if (!consented) return { status: "not_consented" };
+  if (ready === "calendar_unsupported") return { status: "calendar_unsupported" };
   if (!ready) return { status: "skipped" };
   let recorder: FortuneStorageRecorder;
   try { recorder = getRecorder(); } catch { return { status: "unavailable" }; }
@@ -46,13 +47,19 @@ async function record(
   try { await write(recorder); return { status: "stored" }; } catch { return { status: "failed" }; }
 }
 
-/** After POST /api/fortune: save the matching birth input only when ready and consented. */
+/**
+ * After POST /api/fortune: save the matching birth input whenever the user consented and the
+ * date passed solar validation (fortuneInputSchema). It does NOT depend on the fortune result,
+ * so a missing or failing provider still lets the user continue to profile and recommendations.
+ * Nothing from the fortune result (pillars, elements, interpretation) is stored here.
+ */
 export function storeBirthInputIfConsented(
-  userId: string, input: FortuneInput, result: FortuneResult, getRecorder: () => FortuneStorageRecorder,
+  userId: string, input: FortuneInput, getRecorder: () => FortuneStorageRecorder,
 ): Promise<MatchingStorageOutcome> {
   return record(
     input.matchingStorageConsent === MATCHING_STORAGE_CONSENT_VERSION,
-    result.status === "ready",
+    // MVP: solar only. Lunar/leap input waits for verified conversion (team decision 2026-11-25).
+    input.calendar === "solar" && !input.isLeapMonth ? true : "calendar_unsupported",
     getRecorder,
     (recorder) => recorder.recordBirthInput(userId, toBirthInputForStorage(input)),
   );
