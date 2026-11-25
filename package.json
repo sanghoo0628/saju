@@ -28,7 +28,8 @@
     "test:supabase:chat": "node --env-file=.env.local --import tsx scripts/verify-supabase-chat.ts",
     "verify:supabase:readonly": "node --env-file=.env.local --import tsx scripts/verify-supabase-readonly.ts",
     "test:integration-tools": "node --test scripts/test/*.test.ts",
-    "verify:integration": "node scripts/verify-integration.ts"
+    "verify:integration": "node scripts/verify-integration.ts",
+    "verify:groble:readonly": "node --env-file=.env.local --import tsx scripts/verify-groble-readonly.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
