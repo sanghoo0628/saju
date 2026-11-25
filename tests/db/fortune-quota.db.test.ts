@@ -1,5 +1,5 @@
 /**
- * 20261125000100_fortune_provider_quota.sql 검증 (PGlite)
+ * 20261125000300_fortune_provider_quota.sql 검증 (PGlite)
  * - 사용자별·전체 일일 한도, 한국 날짜 기준 원자적 확보
  * - 사용자 한도에 걸린 요청은 전체 카운트를 소비하지 않는다
  * - 브라우저(authenticated/anon)는 함수·테이블에 접근 불가
