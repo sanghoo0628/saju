@@ -10,7 +10,7 @@ import {
   storeBirthInputIfConsented, storeMatchingAnalysisIfConsented,
   type BirthInputForStorage, type FortuneStorageRecorder,
 } from "../../src/features/fortune/storage";
-import type { FortuneProvider, FortuneResult } from "../../src/features/fortune/types";
+import type { FortuneProvider } from "../../src/features/fortune/types";
 import type { MatchingFortuneInput, ReadyMatchingFortuneInput } from "../../src/features/fortune/matching-input";
 import {
   BIRTH_STORAGE_CONSENT_VERSION, createMatchingService,
@@ -24,8 +24,6 @@ const base = {
 } as const;
 const consented = fortuneInputSchema.parse({ ...base, matchingStorageConsent: MATCHING_STORAGE_CONSENT_VERSION });
 const notConsented = fortuneInputSchema.parse(base);
-const ready = { status: "ready" } as FortuneResult;
-const failedResult: FortuneResult = { status: "error", code: "PROVIDER_UNAVAILABLE", retryable: true, message: "x" };
 
 function recorder(overrides: Partial<FortuneStorageRecorder> = {}) {
   const births: Array<{ userId: string; input: BirthInputForStorage }> = [];
@@ -55,9 +53,9 @@ test("storage consent does not change the fortune fingerprint, so a retry reuses
   assert.equal(createFortuneFingerprint(consented, options), createFortuneFingerprint(notConsented, options));
 });
 
-test("ready + consented sends only birth date, calendar, leap month and timezone", async () => {
+test("consented solar input sends only birth date, calendar, leap month and timezone", async () => {
   const r = recorder();
-  const outcome = await storeBirthInputIfConsented(userId, consented, ready, () => r.value);
+  const outcome = await storeBirthInputIfConsented(userId, consented, () => r.value);
   assert.deepEqual(outcome, { status: "stored" });
   assert.deepEqual(r.births, [{ userId, input: { birthDate: "2002-03-15", calendar: "solar", isLeapMonth: false, timezone: "Asia/Seoul" } }]);
   const sent = r.births[0]?.input as unknown as Record<string, unknown>;
@@ -66,26 +64,42 @@ test("ready + consented sends only birth date, calendar, leap month and timezone
   }
 });
 
-test("no consent or a non-ready result never reaches B", async () => {
+test("without consent nothing reaches B", async () => {
   let calls = 0;
   const getRecorder = () => { calls += 1; return recorder().value; };
-  assert.deepEqual(await storeBirthInputIfConsented(userId, notConsented, ready, getRecorder), { status: "not_consented" });
-  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, failedResult, getRecorder), { status: "skipped" });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, notConsented, getRecorder), { status: "not_consented" });
   assert.equal(calls, 0);
 });
 
-test("unconfigured matching and B failures are reported without throwing", async () => {
-  const unavailable = await storeBirthInputIfConsented(userId, consented, ready, () => { throw new Error("MATCHING_NOT_CONFIGURED"); });
-  assert.deepEqual(unavailable, { status: "unavailable" });
-  const r = recorder({ async recordBirthInput() { throw new Error("raw db error with 2002-03-15"); } });
-  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, ready, () => r.value), { status: "failed" });
+test("storage no longer depends on the fortune result (provider missing or failing)", async () => {
+  // The route runs storage independently of calculateFortune; the storage step takes no result at all.
+  assert.equal(storeBirthInputIfConsented.length, 3);
+  const r = recorder();
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => r.value), { status: "stored" });
+  assert.equal(r.births.length, 1);
 });
 
-test("lunar leap-month input is passed through unconverted", async () => {
-  const lunar = fortuneInputSchema.parse({ ...base, birthTime: null, calendar: "lunar", birthDate: "2001-04-30", isLeapMonth: true, matchingStorageConsent: MATCHING_STORAGE_CONSENT_VERSION });
-  const r = recorder();
-  await storeBirthInputIfConsented(userId, lunar, ready, () => r.value);
-  assert.deepEqual(r.births[0]?.input, { birthDate: "2001-04-30", calendar: "lunar", isLeapMonth: true, timezone: "Asia/Seoul" });
+test("invalid solar dates are rejected by the schema before storage can run", () => {
+  for (const birthDate of ["2002-02-30", "2099-01-01", "2002-13-01"]) {
+    assert.equal(fortuneInputSchema.safeParse({ ...base, birthDate, matchingStorageConsent: MATCHING_STORAGE_CONSENT_VERSION }).success, false, birthDate);
+  }
+});
+
+test("unconfigured matching and B failures are reported without throwing", async () => {
+  const unavailable = await storeBirthInputIfConsented(userId, consented, () => { throw new Error("MATCHING_NOT_CONFIGURED"); });
+  assert.deepEqual(unavailable, { status: "unavailable" });
+  const r = recorder({ async recordBirthInput() { throw new Error("raw db error with 2002-03-15"); } });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => r.value), { status: "failed" });
+});
+
+test("lunar and leap-month input is not stored for matching yet (solar-only MVP)", async () => {
+  let calls = 0;
+  const getRecorder = () => { calls += 1; return recorder().value; };
+  for (const isLeapMonth of [false, true]) {
+    const lunar = fortuneInputSchema.parse({ ...base, birthTime: null, calendar: "lunar", birthDate: "2001-04-30", isLeapMonth, matchingStorageConsent: MATCHING_STORAGE_CONSENT_VERSION });
+    assert.deepEqual(await storeBirthInputIfConsented(userId, lunar, getRecorder), { status: "calendar_unsupported" });
+  }
+  assert.equal(calls, 0);
 });
 
 // B's real service with a minimal in-memory store: proves the two contracts fit end to end.
@@ -106,7 +120,7 @@ function bService() {
 
 test("B MatchingService stores A's birth input with the consent version and no birth time", async () => {
   const b = bService();
-  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, ready, () => b.value), { status: "stored" });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => b.value), { status: "stored" });
   assert.equal(b.births.length, 1);
   const row = b.births[0] as unknown as Record<string, unknown>;
   assert.equal(row.userId, userId);
@@ -148,4 +162,12 @@ test("fortune calculation result is unchanged by the consent field", async () =>
   assert.equal(a.status, "ready");
   assert.equal(b.status, "ready");
   if (a.status === "ready" && b.status === "ready") assert.deepEqual(a.data, b.data);
+});
+
+test("a different date after the score exists reports locked, not a generic failure", async () => {
+  const { MatchingError } = await import("../../src/server/matching-service");
+  const locked = recorder({ async recordBirthInput() { throw new MatchingError("BIRTH_INPUT_LOCKED", "locked"); } });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => locked.value), { status: "locked" });
+  const changed = recorder({ async recordBirthInput() { throw new MatchingError("BIRTH_INPUT_CHANGED", "changed"); } });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => changed.value), { status: "failed" });
 });

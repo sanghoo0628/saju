@@ -22,6 +22,7 @@ export function FortuneAnalysisView({ analysis, basis }: { analysis: NormalizedC
 }
 
 export function FortuneResultView({ result }: { result: FortuneResult }) {
+  if (result.status === 'not_ready' && result.reasonCode === 'PROVIDER_NOT_CONFIGURED') return <section className="feedback notice" role="status"><h2>사주 분석 준비 중</h2><p>사주 계산 연결을 준비하고 있어요. 사주 결과나 오행 분석은 만들지 않았어요.</p></section>;
   if (result.status !== 'ready') return <section className="feedback error" role="alert"><h2>아직 결과를 준비하지 못했어요</h2><p>{result.message}</p></section>;
   return <section className="result-panel" aria-labelledby="result-heading">
     <div className="result-heading"><span className="pill">{result.source === 'mock' ? '개발용 고정 샘플 · 실제 계산 아님' : `${result.provider === 'hrum' ? 'HRUM' : '외부 공급자'} 사주 결과`}</span><span className="result-basis">{result.data.chartBasis === 'three_pillars' ? '3주 · 생시 미상' : '4주 · 생시 포함'}</span></div>

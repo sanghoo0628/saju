@@ -5,6 +5,8 @@ import { createHrumFortuneProvider } from './providers/hrum';
 import { createMockFortuneProvider } from './providers/mock';
 import { createUnconfiguredFortuneProvider } from './providers/unconfigured';
 import { MemoryFortuneCache } from './cache';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseFortuneQuota, type ClaimProviderCall } from './quota';
 import type { FortuneProvider } from './types';
 
 const processSecret = randomBytes(32).toString('hex');
@@ -25,10 +27,15 @@ export function getFortunePublicConfiguration() {
 export function getFortuneServiceOptions(userId: string) {
   const env = getServerEnv();
   let provider = unconfigured;
+  let claimProviderCall: ClaimProviderCall | undefined;
   if (env.APP_ENV !== 'production' && env.SAJU_PROVIDER === 'mock') provider = mock;
   else if (env.SAJU_PROVIDER === 'hrum' && env.SAJU_API_KEY && env.SAJU_FINGERPRINT_SECRET) {
     if (!hrum || hrum.key !== env.SAJU_API_KEY) hrum = { key: env.SAJU_API_KEY, provider: createHrumFortuneProvider({apiKey:env.SAJU_API_KEY}) };
     provider = hrum.provider;
+    // Billed provider: every route sharing these options shares one DB-backed daily limit.
+    claimProviderCall = createSupabaseFortuneQuota(createAdminClient, {
+      userLimit: env.FORTUNE_DAILY_USER_LIMIT, totalLimit: env.FORTUNE_DAILY_TOTAL_LIMIT,
+    });
   }
-  return {userId, provider, cache, fingerprintSecret:env.SAJU_FINGERPRINT_SECRET ?? processSecret};
+  return {userId, provider, cache, fingerprintSecret:env.SAJU_FINGERPRINT_SECRET ?? processSecret, claimProviderCall};
 }

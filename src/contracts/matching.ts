@@ -105,7 +105,11 @@ export type MatchingErrorCode =
   | "FORTUNE_REQUIRED"
   | "TRACK_REQUIRED"
   | "TRACK_LOCKED"
-  | "NOT_CONFIGURED";
+  | "NOT_CONFIGURED"
+  /** 점수가 생긴 뒤 다른 생년월일로 저장하려 함 (같은 값 재저장은 허용) */
+  | "BIRTH_INPUT_LOCKED"
+  /** 점수를 만드는 사이에 생년월일이 바뀜. 다시 시도하면 새 날짜로 점수를 만든다 */
+  | "BIRTH_INPUT_CHANGED";
 
 /** 프로필 입력 제한. 서버 검증(parseUpdateProfile)과 화면이 같은 값을 쓴다. */
 export const PROFILE_LIMITS = {

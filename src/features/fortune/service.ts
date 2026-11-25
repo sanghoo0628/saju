@@ -2,7 +2,8 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { fortuneInputSchema, type FortuneInput } from "./schema";
 import { normalizedChartSchema } from "./normalization";
-import type { FortuneCache, FortuneProvider, FortuneResult, ProviderResult } from "./types";
+import type { FortuneCache, FortuneErrorCode, FortuneProvider, FortuneResult, ProviderResult } from "./types";
+import type { ClaimProviderCall } from "./quota";
 
 export interface CalculateFortuneOptions {
   userId: string;
@@ -11,6 +12,8 @@ export interface CalculateFortuneOptions {
   cache?: FortuneCache;
   timeoutMs?: number;
   now?: () => Date;
+  /** Daily quota claim for billed provider calls. Shared by every fortune route via getFortuneServiceOptions. */
+  claimProviderCall?: ClaimProviderCall;
 }
 
 export function createFortuneFingerprint(input: FortuneInput, options: Pick<CalculateFortuneOptions, "userId" | "provider" | "fingerprintSecret">): string {
@@ -46,6 +49,8 @@ const safeErrorMessages = {
   PROVIDER_AUTH_FAILED: '사주 공급자 인증 설정을 확인해야 합니다.',
   PROVIDER_QUOTA_EXCEEDED: '사주 공급자의 이용 한도 또는 잔액을 확인해야 합니다.',
   PROVIDER_INPUT_REJECTED: '사주 공급자가 입력을 처리하지 못했습니다. 날짜와 계산 옵션을 확인해 주세요.',
+  DAILY_LIMIT_REACHED: '오늘 사용할 수 있는 사주 계산 횟수를 모두 사용했어요. 내일 다시 시도해 주세요.',
+  SERVICE_DAILY_LIMIT_REACHED: '오늘 사주 계산 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.',
 } as const;
 const notReadyMessages = {
   PROVIDER_NOT_CONFIGURED: '실제 사주 공급자의 연결 설정을 준비하고 있습니다.',
@@ -89,6 +94,20 @@ export async function calculateFortune(request: unknown, options: CalculateFortu
   }
 }
 
+/** Maps the DB claim to provider error codes. Any quota failure fails closed (no billed call). */
+function claimFor(options: CalculateFortuneOptions): (() => Promise<FortuneErrorCode | null>) | undefined {
+  const claim = options.claimProviderCall;
+  if (!claim) return undefined;
+  return async () => {
+    try {
+      const decision = await claim(options.userId);
+      return decision === "ok" ? null : decision === "user_limit" ? "DAILY_LIMIT_REACHED" : "SERVICE_DAILY_LIMIT_REACHED";
+    } catch {
+      return "PROVIDER_UNAVAILABLE";
+    }
+  };
+}
+
 async function computeFortune(input: FortuneInput, fingerprint: string, options: CalculateFortuneOptions): Promise<FortuneResult> {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -102,7 +121,7 @@ async function computeFortune(input: FortuneInput, fingerprint: string, options:
   let response: ProviderResult;
   try {
     response = await Promise.race([
-      options.provider.calculate(input, { signal: controller.signal }),
+      options.provider.calculate(input, { signal: controller.signal, claimCall: claimFor(options) }),
       timeoutResult,
     ]);
   } catch {

@@ -1,0 +1,49 @@
+C 웹훅 DB 시간 예산 준비 — 2026-11-25 KST
+
+브랜치: feature/c-groble-event-verification
+main / 실제 배포 / 공유 DB / PAYMENTS_ENABLED는 변경하지 않음.
+
+구현
+- HTTP 본문 수신 기본/최대 2초. 멈춘 본문은 408 후 취소.
+- inbox.receive 전체의 DB 연결·쿼리·재시도는 요청별 단조 시계 기준 최대 6.5초 예산 공유.
+- 서명 검증과 해시 계산에 든 시간도 같은 receive 예산에서 소모됨.
+- 쿼리마다 예산이 새로 생기지 않음. 제한 시간 후 새 checkout/SQL 실행 금지.
+- pool 연결 대기 초과 후 늦게 전달된 client는 즉시 폐기.
+- 실행 중 SQL/COMMIT 시간 초과 시 client.release(true)로 연결 폐기.
+  늦은 쿼리 성공을 HTTP 성공으로 바꾸지 않고, 중복 release를 방지.
+- COMMIT 결과가 불확실하면 내부 자동 재실행 금지, HTTP503로 제공자 재시도 요청.
+  실제 COMMIT이 됐던 경우에도 영속 이벤트/결제 멱등 처리로 재시도 시 중복 권한을 만들지 않음.
+- inbox의 서버 statement_timeout은 최대4초, lock_timeout은 최대1초로 제한.
+- 일반 결제·채팅 repository의 기존 시간 설정은 그대로이며 웹훅 inbox에만 적용.
+
+보장 범위
+- DB 작업을 그냥 Promise.race로 방치하지 않고 시간 초과 client를 폐기한다.
+- 연결 폐기는 서버의 ROLLBACK 완료 확인이나 미커밋 증명이 아님.
+  특히 COMMIT이 전달된 뒤에는 이미 커밋됐을 수도 있으므로 실패 응답 후 재시도/조회로 확인한다.
+- 재시도 간 backoff 때문에 receive 오류 응답은 6.5초 예산보다 최대 약0.5초 늦어질 수 있음.
+- 본문+receive 기본 내부 예산은 약8.5초, backoff 포함 약9초 범위.
+  플랫폼 cold start, event-loop 지연, 네트워크 왕복 시간을 포함한 외부 10초 SLA 보장은 아님.
+- 실제 배포 연결 후 Groble 테스트 발송의 관측 시간, Vercel 함수 제한 및 pool 설정을 확인해야 함.
+- 실제 route는 아직 연결하지 않았음. 이전 마이그레이션 적용/B 정책 검토/Groble 키 준비는 계속 필요.
+
+테스트
+- 시간 예산 unit 테스트14개: 절대 기한 공유, 늦은 연결 폐기, 진행 중 SQL 종료,
+  늦은 성공 무시, COMMIT 불확실성, 재시도 예산 만료, 중복 release 방지, 설정 검증.
+- A HTTP 본문 예산 경계 테스트2개 추가.
+- native PostgreSQL2개 추가:
+  1) SQL 중간 지연→503→모든 미커밋 기록 비공개/롤백→정상 재시도 한 번 반영
+  2) 실제 COMMIT 뒤 응답 지연→503→기존 결제 유지→재시도 중복 없음
+- 로컬 native 테스트는 기존 sandbox 공유 메모리 제한으로 직접 실행하지 않음.
+  GitHub CI의 실제 PostgreSQL 결과를 확인해 후속 기록함.
+
+검증 결과
+- 기능 커밋: 445750ef3cb0bc7c1c4efb802a84f4c111f83fdc
+- 최종 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본590개 (B167 + C174 + A208 + UI27 + 도구14), HTTP20, lint/types, Next/Vite 빌드 통과.
+- 로컬 보고서: test-results/integration/2026-11-25T02-04-03-351Z-1c064f3d/report.json
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45530255943
+- Native PostgreSQL concurrency 작업 138923496677: success, 36개 통과.
+  SQL 중간 중단 및 실제 COMMIT 후 응답 지연 재현 포함.
+- CI App, API and UI 작업 138923496329도 success. 두 CI 작업 모두 통과.
+- 최종 자동 테스트626개 (기본590 + native36), HTTP20 및 모든 빌드 통과.
+- main / 실제 결제 / 배포 후 학교 사용자 채팅 E2E는 이번 검증 범위 밖이며 변경하지 않음.

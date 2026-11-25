@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { MATCH_PRICE_KRW, isClientMessageId } from "../../../contracts/payment-chat.ts";
 import type { ApiErrorResponse, ChatMessage, CreateOrderResponse } from "../../../contracts/payment-chat.ts";
-import type { Actor, Order, PaymentGateway, Repository, Transaction } from "./ports.ts";
+import type { Actor, Order, PaymentGateway, CompletedPayment, Repository, Transaction } from "./ports.ts";
 
 export class ServiceError extends Error {
   code: ApiErrorResponse["code"];
@@ -30,6 +30,33 @@ async function participant(tx: Transaction, id: string, userId: string) {
   if (!room || !room.members.includes(userId)) forbidden();
   await availablePair(tx, ...room.members);
   return room;
+}
+
+/** Apply an already verified completion within the caller's database transaction. */
+export async function applyCompletedPayment(tx: Transaction, payment: CompletedPayment, productId: string) {
+  if (!payment.reference || !payment.transactionId || payment.productId !== productId ||
+      payment.currency !== "KRW" || payment.amount !== MATCH_PRICE_KRW)
+    invalid("결제 내용이 주문과 일치하지 않습니다.");
+
+  const order = await tx.orderByReference(payment.reference);
+  if (!order) invalid("알 수 없는 주문입니다.");
+  const linkedOrder = await tx.paymentOrder(payment.transactionId);
+  if (linkedOrder && linkedOrder !== order.id) invalid("이미 다른 주문에 사용된 결제입니다.");
+  if (order.amountKrw !== payment.amount) invalid("주문 금액이 일치하지 않습니다.");
+  if (["fulfilled", "refund_pending", "refunded"].includes(order.status)) {
+    if (linkedOrder !== order.id) invalid("이미 완료된 주문의 다른 결제입니다.");
+    return { orderId: order.id, status: order.status };
+  }
+  if (order.status !== "pending")
+    invalid("처리할 수 없는 주문 상태입니다.");
+  await tx.savePayment(payment.transactionId, order.id);
+  if (!order.userId || !order.targetId || !(await tx.profileAvailable(order.targetId)) || await tx.blocked(order.userId, order.targetId)) {
+    // 대상을 임의로 바꾸지 않는다. 결제 사실을 보존하고 환불 처리로 넘긴다.
+    await tx.saveOrder({ ...order, status: "refund_pending" });
+    return { orderId: order.id, status: "refund_pending" as const };
+  }
+  await tx.saveOrder({ ...order, status: "fulfilled" });
+  return { orderId: order.id, status: "fulfilled" as const };
 }
 
 /** 서버 전용. 브라우저 번들에서 불러오지 않는다. 결제 제공자/DB 구현은 주입한다. */
@@ -84,31 +111,7 @@ export function createService(deps: {
     /** 원문 body를 그대로 전달한다. JSON 파싱 후 재직렬화한 body는 서명 검증에 쓰지 않는다. */
     async paymentWebhook(rawBody: Uint8Array, headers: Headers) {
       const payment = await gateway.verifyCompleted(rawBody, headers);
-      if (!payment.reference || !payment.transactionId || payment.productId !== gateway.productId ||
-          payment.currency !== "KRW" || payment.amount !== MATCH_PRICE_KRW)
-        invalid("결제 내용이 주문과 일치하지 않습니다.");
-
-      return repository.transaction(async tx => {
-        const order = await tx.orderByReference(payment.reference);
-        if (!order) invalid("알 수 없는 주문입니다.");
-        const linkedOrder = await tx.paymentOrder(payment.transactionId);
-        if (linkedOrder && linkedOrder !== order.id) invalid("이미 다른 주문에 사용된 결제입니다.");
-        if (order.amountKrw !== payment.amount) invalid("주문 금액이 일치하지 않습니다.");
-        if (["fulfilled", "refund_pending", "refunded"].includes(order.status)) {
-          if (linkedOrder !== order.id) invalid("이미 완료된 주문의 다른 결제입니다.");
-          return { orderId: order.id, status: order.status };
-        }
-        if (order.status !== "pending")
-          invalid("처리할 수 없는 주문 상태입니다.");
-        await tx.savePayment(payment.transactionId, order.id);
-        if (!order.userId || !order.targetId || !(await tx.profileAvailable(order.targetId)) || await tx.blocked(order.userId, order.targetId)) {
-          // 대상을 임의로 바꾸지 않는다. 결제 사실을 보존하고 환불 처리로 넘긴다.
-          await tx.saveOrder({ ...order, status: "refund_pending" });
-          return { orderId: order.id, status: "refund_pending" as const };
-        }
-        await tx.saveOrder({ ...order, status: "fulfilled" });
-        return { orderId: order.id, status: "fulfilled" as const };
-      });
+      return repository.transaction(tx => applyCompletedPayment(tx, payment, gateway.productId));
     },
 
     async requestChat(actor: Actor, orderId: string) {

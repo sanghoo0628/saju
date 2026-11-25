@@ -9,6 +9,7 @@ export interface Stage { id: string; script: string; timeoutMs: number; optional
 export interface Outcome { status: 'passed' | 'failed' | 'cancelled'; reason?: string }
 export interface StageResult extends Stage { status: 'planned' | 'not_run' | Outcome['status']; reason?: string }
 export const stages: readonly Stage[] = [
+  { id: 'migrations', script: 'verify:migrations', timeoutMs: 10000 },
   { id: 'lint', script: 'lint', timeoutMs: 120000 },
   { id: 'types', script: 'typecheck', timeoutMs: 120000 },
   { id: 'tests', script: 'test', timeoutMs: 300000 },

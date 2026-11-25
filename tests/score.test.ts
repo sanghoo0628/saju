@@ -93,7 +93,7 @@ describe("toScore / computeScore", () => {
 describe("음력 입력과 점수 키 (2026-11-23 A 저장 계약)", () => {
   it("양력 입력은 기존 v1 과 같은 점수", () => {
     const solar = computeScoreForBirthInput({ calendar: "solar", date: "2003-05-17", isLeapMonth: false }, "humanities", "test-secret");
-    expect(solar).toEqual({ ...computeScore("2003-05-17", "humanities", "test-secret"), scoreInput: "solar" });
+    expect(solar).toEqual({ ...computeScore("2003-05-17", "humanities", "test-secret"), scoreInput: "solar", birthKey: "2003-05-17" });
   });
 
   it("음력·윤달은 다른 키로 해시하고 입력 종류를 기록한다", () => {

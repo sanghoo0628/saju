@@ -1,0 +1,60 @@
+C Groble 서버 연결 모듈 준비 — 2026-11-25 KST
+
+브랜치: feature/c-groble-event-verification
+main / 실제 배포 / 공유 DB / 실제 결제 활성화 변경 없음.
+
+구현
+- src/server/groble-module.ts: createGroblePaymentChatModule()
+- 하나의 handle(Request)에서 일반 주문/채팅 API와 전용 웹훅 수신부를 분기.
+- A의 검증된 학교 세션 함수 requireUserId를 일반 요청마다 실행.
+- 웹훅은 로그인 쿠키/학교 세션/브라우저 Origin에 의존하지 않고 실제 HMAC 검증.
+- 일반 앱 POST는 기존 동일 Origin 검사 유지.
+
+닫힌 기본 상태
+- PAYMENTS_ENABLED 미설정/false이면 키/DB 사전 점검 없이 비활성 모듈 구성.
+- 새 결제 및 웹훅 처리는 차단하지만 기존 fulfilled 주문/요청/대화는 기존 서비스대로 사용.
+- MOCK_PAYMENTS_ENABLED로 대체 결제 성공 경로를 선택할 수 없음.
+- 잘못된 true/false 값, 결제창/상품/시크릿, 키 회전 만료 설정은 DB 접속 전에 거부.
+- 활성 구성은 HTTPS 원본 주소, 현재/이전 키 회전 제약을 검증.
+
+활성 모듈의 준비 조건
+- 읽기 전용 DB 사전 점검을 최대3초 예산으로 수행.
+- 001/002 이력, 테이블/컬럼/RLS/인덱스/브라우저 차단/서버 권한 등이 준비돼야 모듈 반환.
+- 모듈 생성 중 데이터/권한/마이그레이션을 자동 수정하지 않음.
+- 사전 점검 실패/누락은 일반화된 ConfigurationError. DB 오류/접속 문자열은 노출하지 않음.
+- 원장 미연결/검토 필요 이벤트 수는 DB 구조 준비와 별개로 운영 점검 도구에서 확인.
+- 서명 검증기→inbox→단일 트랜잭션→HTTP 응답을 연결.
+- checkout URL 생성기만 일반 주문 서비스에 사용하고, 완료 전용 legacy 경로는 막음.
+  실제 웹훅은 항상 영속 이벤트 원장을 거치므로 완료-only 경로로 우회하지 않음.
+- 부분/전액 환불, 취소 요청, 역순/중복 처리 및 요청별 DB 시간 예산은 기존 구현 재사용.
+
+현재 실제 서비스에는 아직 연결하지 않은 것
+- payment-chat-runtime.ts, 실제 Next route, 공통 env/schema.ts의 결제 활성화 금지 가드는 그대로.
+- 따라서 키/플래그를 채우기만 해서 이 모듈이 자동으로 켜지는 구조가 아님.
+- B의 002 적용 확인, 환불 정책 합의, Groble 키/상품/웹훅 설정 및 실제 테스트 발송 후
+  런타임/라우트 연결과 공통 환경 검증 가드 변경을 별도 PR에서 수행해야 함.
+- 생성한 모듈은 서버 인프라로 재사용하되 인증 함수는 요청마다 실행된다.
+- 최초 async 생성 Promise 캐시/실패 시 재생성 정책, 플랫폼 cold start 및 실제 응답 시간은
+  라이브 런타임에 연결할 때 확인. 운영 키/설정 변경 후에는 재배포/모듈 재생성 필요.
+- 유료 HRUM 사주/사용자별 호출 제한/생년월일 저장 계약은 A/B 영역이며 이번 변경에 포함하지 않음.
+
+검증 설계
+- A 테스트17개: 비활성 상태 DB/키 미사용, 잘못된 활성화값/키/주소/회전/모의 결제 거부,
+  잘못된 사전 점검 실패가 안전한 오류로 나가는지 검사.
+- native PostgreSQL9개: 실제 HMAC→HTTP→영속 원장→결제→대화 요청/수락/메시지까지 조립 검증,
+  잘못된 서명, 환불 선행, 구조/권한 누락, CSRF, 비활성 상태 기존 권한, 키 회전, 부분 환불.
+- native 테스트에서 server-only는 서버 실행을 표시하기 위한 Vitest 호환 처리만 수행.
+  서명 검증기/SQL/원장/HTTP 핸들러는 실제 구현. Auth는 테스트 사용자 ID 함수로 주입.
+- 외부 Groble/HRUM API를 호출하거나 실제 결제하지 않음. DB는 CI의 격리 임시 PostgreSQL.
+- 실제 배포 로그인/상대방 메시지 송수신/유료 결제 E2E 완료를 의미하지 않음.
+- 검사 결과는 후속 기록에 추가.
+
+검증 결과
+- 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본641개 (B201 + C174 + A225 + UI27 + 도구14), HTTP20, lint/types 및 Next/Vite 빌드 통과.
+- 보고서: test-results/integration/2026-11-25T06-40-13-575Z-bfb43ab9/report.json
+- 기능 커밋: 279f96fc3c7869ec6f007c304268d1e6308fc9b2
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45562417518
+- Native PostgreSQL 작업 139029046770: success,45개 통과 (이전36 + 조립 경로9).
+- CI App, API and UI 작업 139029047065도 success. 두 작업 모두 통과.
+- 최종 자동 검사686개 (기본641 + native45), HTTP20 및 모든 빌드 통과.
