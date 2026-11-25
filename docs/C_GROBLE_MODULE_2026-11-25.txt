@@ -48,3 +48,13 @@ main / 실제 배포 / 공유 DB / 실제 결제 활성화 변경 없음.
 - 외부 Groble/HRUM API를 호출하거나 실제 결제하지 않음. DB는 CI의 격리 임시 PostgreSQL.
 - 실제 배포 로그인/상대방 메시지 송수신/유료 결제 E2E 완료를 의미하지 않음.
 - 검사 결과는 후속 기록에 추가.
+
+검증 결과
+- 로컬 pnpm verify:integration --run 6단계 모두 통과.
+- 기본641개 (B201 + C174 + A225 + UI27 + 도구14), HTTP20, lint/types 및 Next/Vite 빌드 통과.
+- 보고서: test-results/integration/2026-11-25T06-40-13-575Z-bfb43ab9/report.json
+- 기능 커밋: 279f96fc3c7869ec6f007c304268d1e6308fc9b2
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45562417518
+- Native PostgreSQL 작업 139029046770: success,45개 통과 (이전36 + 조립 경로9).
+- CI App, API and UI 작업 139029047065도 success. 두 작업 모두 통과.
+- 최종 자동 검사686개 (기본641 + native45), HTTP20 및 모든 빌드 통과.

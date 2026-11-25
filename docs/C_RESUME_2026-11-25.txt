@@ -10,8 +10,8 @@ C 작업 재개 기록 — 2026-11-25 KST
 
 코드 상태
 - main 785adf7 기반 후속 작업 브랜치: feature/c-groble-event-verification.
-- 기능 커밋: 267bbedc2d73f83993c40cf73051823590be3b1e.
-- 이전 저장 커밋: af20f6e. 이번 재개 문서 저장은 기능 변경 없음.
+- 기능 커밋: 279f96fc3c7869ec6f007c304268d1e6308fc9b2.
+- 이전 저장 커밋: 4870752. 이번 재개 문서 저장은 기능 변경 없음.
 - 작업 폴더: /private/tmp/saju-release-20261124.
 - 이전 C 작업 폴더 /private/tmp/saju-c-20261123는 보존.
 - 새 코드가 아직 main/배포에 반영되지 않았으므로 후속 C 브랜치를 삭제하지 않는다.
@@ -27,9 +27,9 @@ C 작업 재개 기록 — 2026-11-25 KST
 8. 실제 COMMIT 후 응답 지연 시 제공자 재시도로 중복 결제가 생기지 않는지 검증.
 
 자동 검증
-- 기본624개 + native PostgreSQL36개 = 660개 통과.
+- 기본641개 + native PostgreSQL45개 = 686개 통과.
 - HTTP20, lint/types, Next/Vite 빌드 통과.
-- CI https://github.com/sanghoo0628/saju/actions/runs/45560222774 : 두 작업 모두 success.
+- CI https://github.com/sanghoo0628/saju/actions/runs/45562417518 : 두 작업 모두 success.
 - 로컬 native PostgreSQL은 sandbox 공유 메모리 제한으로 직접 실행하지 않음.
   실제 PostgreSQL 동시성/타임아웃 검증은 위 GitHub CI에서 수행함.
 - 문서 저장만으로 같은 검사를 다시 실행할 필요는 없음.
@@ -75,6 +75,7 @@ C_GROBLE_HTTP_2026-11-25.txt
 C_GROBLE_DEADLINES_2026-11-25.txt
 C_GROBLE_UPDATED_AT_2026-11-25.txt
 C_GROBLE_READINESS_2026-11-25.txt
+C_GROBLE_MODULE_2026-11-25.txt
 
 로컬 영속 백업 (Git 저장소 외부 workspace/work)
 - C_CURRENT_CHECKPOINT_2026-11-25.json
@@ -96,3 +97,10 @@ B 피드백 후속 저장
 - 001 적용 및 테이블/RLS/인덱스/권한 정상, 002는 아직 미적용으로 DB 준비 미완료 판정.
 - 미연결/검토 필요 이벤트0건. 원장별 개인 데이터/식별자는 조회하거나 출력하지 않음.
 - 이 점검은 실제 결제 활성화/E2E 검증이 아님.
+
+서버 연결 모듈 후속
+- C_GROBLE_MODULE_2026-11-25.txt 참조. 실제 runtime에는 연결하지 않은 상태 유지.
+- 키/기능 플래그/HTTPS 주소/읽기 전용 DB 사전 점검 후에만 활성 모듈 생성.
+- 일반 인증/Origin 보호와 전용 HMAC→원장 웹훅 처리 경로를 한 handle로 조립.
+- HRUM 명의/비용/호출 제한/저장 분리/양음력에 대한 A 답변을 받았고 사용자에게 제안문 제공.
+  팀 최종 합의나 비용 승인으로 간주하지 않음. A/B 기능·운영 키·공통 env 가드는 변경하지 않음.
