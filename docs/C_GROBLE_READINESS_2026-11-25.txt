@@ -33,7 +33,7 @@ C Groble 읽기 전용 운영 점검 — 2026-11-25 KST
 
 실제 saju-dev 읽기 전용 검사 결과
 - readOnly=true, serviceRole=true, roleRestored=true, sharedDataWrites=0.
-- 20261125000100 적용 확인. 20261125000200은 미적용.
+- 20261125000100 적용 확인. 20261125000500은 미적용.
 - 원장3개 테이블/필수 컬럼/RLS/인덱스 및 필요 서버 권한 정상.
 - 브라우저 테이블/컬럼 접근 권한 차단 정상.
 - updated_at 컬럼/트리거 미존재이므로 databaseReady=false, 종료코드2 (연결 실패가 아님).

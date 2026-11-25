@@ -30,7 +30,7 @@ function signed(value:unknown,key=source.GROBLE_WEBHOOK_SECRET){
 const scalar=async(sql:string)=>(await db.pool.query(sql)).rows[0].value;
 beforeAll(async()=>{db=await startNativePostgres();await db.pool.query(`create schema supabase_migrations;
   create table supabase_migrations.schema_migrations(version text primary key);
-  insert into supabase_migrations.schema_migrations values('20261125000100'),('20261125000200')`);},60000);
+  insert into supabase_migrations.schema_migrations values('20261125000100'),('20261125000500')`);},60000);
 afterAll(async()=>{if(db)await db.close();},30000);
 beforeEach(async()=>{
   await db.pool.query(`truncate private.groble_deliveries,private.groble_events,private.groble_refunds,
@@ -68,10 +68,10 @@ it('authenticates refund before completion and prevents late completion from res
   expect((await integration.handle(post('/api/chat-requests',{orderId:order.id}))).status).toBe(403);
 });
 it('missing timestamp migration blocks assembly and does not run a write migration',async()=>{
-  await db.pool.query("delete from supabase_migrations.schema_migrations where version='20261125000200'");
+  await db.pool.query("delete from supabase_migrations.schema_migrations where version='20261125000500'");
   try {await expect(assemble()).rejects.toMatchObject({fields:['GROBLE_DATABASE_SCHEMA']});
     expect(await scalar('select count(*)::int value from public.orders')).toBe(0);
-  } finally {await db.pool.query("insert into supabase_migrations.schema_migrations values('20261125000200')");}
+  } finally {await db.pool.query("insert into supabase_migrations.schema_migrations values('20261125000500')");}
 });
 it('unexpected browser grants block assembly without silently repairing permissions',async()=>{
   await db.pool.query('grant select on private.groble_events to anon');

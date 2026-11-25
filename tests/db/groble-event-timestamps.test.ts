@@ -45,7 +45,7 @@ it('authenticated browsers still cannot read the private ledger',async()=>{
 });
 
 it('upgrades existing ledger rows without pretending their last transition time is known',async()=>{
-  const migration=await readFile(new URL('../../supabase/migrations/20261125000200_groble_events_updated_at.sql',import.meta.url),'utf8');
+  const migration=await readFile(new URL('../../supabase/migrations/20261125000500_groble_events_updated_at.sql',import.meta.url),'utf8');
   await db.db.transaction(async tx=>{
     await tx.exec('drop trigger groble_events_set_updated_at on private.groble_events; alter table private.groble_events drop column updated_at;');
     await tx.query(`insert into private.groble_events(event_id,transaction_id,event_type,occurred_at,payload_hash,created_at)

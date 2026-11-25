@@ -7,7 +7,7 @@ let serial=0;
 beforeAll(async()=>{
   db=await createTestDb();
   await db.db.exec(`create schema supabase_migrations;create table supabase_migrations.schema_migrations(version text primary key);
-    insert into supabase_migrations.schema_migrations values('20261125000100'),('20261125000200');`);
+    insert into supabase_migrations.schema_migrations values('20261125000100'),('20261125000500');`);
 });
 afterAll(async()=>{await db?.db.close();});
 const inspect=()=>inspectGrobleDatabase(db.db);
@@ -33,9 +33,9 @@ it('does not update existing ledger timestamps or processing states',async()=>{
   expect((await db.db.query('select event_id,state,updated_at from private.groble_events order by event_id')).rows).toEqual(before.rows);
 });
 it('reports missing migration history instead of guessing from present tables',async()=>{
-  await db.db.exec("delete from supabase_migrations.schema_migrations where version='20261125000200'");
+  await db.db.exec("delete from supabase_migrations.schema_migrations where version='20261125000500'");
   try {const report=await inspect();expect(report.databaseReady).toBe(false);expect(report.migrations.timestamps).toBe(false);}
-  finally {await db.db.exec("insert into supabase_migrations.schema_migrations values('20261125000200')");}
+  finally {await db.db.exec("insert into supabase_migrations.schema_migrations values('20261125000500')");}
 });
 it('reports a not-yet-applied timestamp column and trigger safely',async()=>{
   await db.db.exec('alter table private.groble_events rename column updated_at to old_updated_at');

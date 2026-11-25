@@ -26,7 +26,7 @@
   | `20261116000600_storage_profile_photos` | `profile-photos` 버킷과 정책 |
   | `20261123000100_birth_input_and_analysis` | 음력 입력·저장 동의·3주 분석, 사진 5MB·이미지 3종 제한 |
   | `20261125000100_groble_event_inbox` | 비공개 결제 이벤트·전송·환불 원장 |
-  | `20261125000200_groble_events_updated_at` | 이벤트 상태/연결 주문 변경 시각 |
+  | `20261125000500_groble_events_updated_at` | 이벤트 상태/연결 주문 변경 시각 |
 - [ ] 이 브랜치의 파일은 9개입니다. 다른 팀의 후속 파일이 추가되면 개수와 순서를 다시 확인합니다. saju-dev는 최근 읽기 전용 검사에서 `001`까지 적용, `002` 미적용으로 확인됐습니다. 기존 적용 파일을 수정하지 않고 후속 파일로 적용합니다.
 - [ ] **Database → Publications** 에서 `supabase_realtime` 에 `messages` 가 들어 있는지 확인 (채팅 실시간 수신)
 - [ ] **Storage** 에 `profile-photos` 버킷이 비공개로 있는지 확인

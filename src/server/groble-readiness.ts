@@ -23,8 +23,8 @@ export async function inspectGrobleDatabase(client: SqlExecutor) {
     const historyExists = (await query<{present:boolean}>("select to_regclass('supabase_migrations.schema_migrations') is not null as present"))[0]!.present;
     const versions = historyExists ? await query<{version:string}>(
       'select version from supabase_migrations.schema_migrations where version=any($1::text[])',
-      [['20261125000100','20261125000200']]) : [];
-    const migrations = {inbox:versions.some(v=>v.version==='20261125000100'),timestamps:versions.some(v=>v.version==='20261125000200')};
+      [['20261125000100','20261125000500']]) : [];
+    const migrations = {inbox:versions.some(v=>v.version==='20261125000100'),timestamps:versions.some(v=>v.version==='20261125000500')};
     phase = 'schema';
     const relations = await query<{relname:string;relrowsecurity:boolean}>(`select relname,relrowsecurity from pg_class
       where relnamespace=to_regnamespace('private') and relkind='r' and relname=any($1::text[])`,[[...tables]]);
