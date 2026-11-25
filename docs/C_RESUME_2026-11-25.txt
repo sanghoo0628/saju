@@ -1,14 +1,16 @@
 C 작업 재개 기록 — 2026-11-25 KST
 
 최신 사용자 지시
-- 여기까지 모두 저장하고 B·Groble 답변이 오면 이어서 진행.
+- B 답변 수신: 테스트 주문 준비 및 20261125000100 dev 적용 보고.
+- 사용자: B에게 테스트 대화 요청 보내는 것 승인. 단, 로그인은 나중에 진행하기로 함.
+- 현재 요청 미전송, 브라우저 /login 로그아웃 상태 유지.
 - main 직접 수정/병합 금지. 작업은 feature/c-groble-event-verification에서 유지.
 - 배포는 B 담당. 개인 Vercel 프로젝트를 새로 만들지 않음.
 
 코드 상태
 - main 785adf7 기반 후속 작업 브랜치: feature/c-groble-event-verification.
-- 기능 커밋: 445750ef3cb0bc7c1c4efb802a84f4c111f83fdc.
-- 이전 저장 커밋: 990ee34. 이번 재개 문서 저장은 기능 변경 없음.
+- 기능 커밋: a6458c9027176c345d954ab4ea9a4e98a89bb8d3.
+- 이전 저장 커밋: af20f6e. 이번 재개 문서 저장은 기능 변경 없음.
 - 작업 폴더: /private/tmp/saju-release-20261124.
 - 이전 C 작업 폴더 /private/tmp/saju-c-20261123는 보존.
 - 새 코드가 아직 main/배포에 반영되지 않았으므로 후속 C 브랜치를 삭제하지 않는다.
@@ -24,9 +26,9 @@ C 작업 재개 기록 — 2026-11-25 KST
 8. 실제 COMMIT 후 응답 지연 시 제공자 재시도로 중복 결제가 생기지 않는지 검증.
 
 자동 검증
-- 기본590개 + native PostgreSQL36개 = 626개 통과.
+- 기본597개 + native PostgreSQL36개 = 633개 통과.
 - HTTP20, lint/types, Next/Vite 빌드 통과.
-- CI https://github.com/sanghoo0628/saju/actions/runs/45530255943 : 두 작업 모두 success.
+- CI https://github.com/sanghoo0628/saju/actions/runs/45549844179 : 두 작업 모두 success.
 - 로컬 native PostgreSQL은 sandbox 공유 메모리 제한으로 직접 실행하지 않음.
   실제 PostgreSQL 동시성/타임아웃 검증은 위 GitHub CI에서 수행함.
 - 문서 저장만으로 같은 검사를 다시 실행할 필요는 없음.
@@ -37,7 +39,8 @@ C 작업 재개 기록 — 2026-11-25 KST
 - 실제 사주 HRUM 키는 A 준비 대기. Groble 상품/시크릿/결제창은 담당자 답변 대기.
 - PAYMENTS_ENABLED=false, 운영 gateway는 unavailablePaymentGateway 그대로.
 - 새 HTTP 팩터리/inbox는 배포 경로에 아직 연결되지 않음.
-- 마이그레이션 20261125000100은 공유 DB에 적용하지 않음. B 검토/적용 필요.
+- B가 마이그레이션 20261125000100 dev 적용을 보고함(원격8개). 기존 파일은 불변 유지.
+- 새 후속 20261125000200(updated_at) 준비. 공유 DB 직접 적용하지 않았으며 B 적용 대기.
 - main/배포/공유 DB/실제 결제 설정은 이번 후속 작업에서 변경하지 않음.
 
 실제 배포 UI 점검 (사용자 승인한 브라우저 테스트)
@@ -55,7 +58,7 @@ C 작업 재개 기록 — 2026-11-25 KST
 B와 Groble 답변이 오면 진행할 순서
 1. B의 테스트 주문 준비 여부와 테스트 상대 계정 참여 가능 여부 확인.
    사용자가 다시 학교 메일로 로그인한 후 배포에서 요청→수락→실시간 메시지 검증.
-2. B가 20261125000100 및 private 테이블 권한을 검토/적용했는지 확인.
+2. B가 새 20261125000200(updated_at)을 검토/적용했는지 확인. 001은 이미 적용 보고받음.
 3. 부분 환불 및 이미 수락한 방 유지 정책을 팀에서 확정.
    현재는 부분 환불<500원 권한 유지+검토, 전액 환불은 새 요청/미수락 요청 수락 차단,
    이미 수락한 방은 기존 서비스 동작대로 유지. 최종 정책 합의 완료로 간주하지 않음.
@@ -70,6 +73,7 @@ C_GROBLE_EVENTS_2026-11-25.txt
 C_GROBLE_INBOX_2026-11-25.txt
 C_GROBLE_HTTP_2026-11-25.txt
 C_GROBLE_DEADLINES_2026-11-25.txt
+C_GROBLE_UPDATED_AT_2026-11-25.txt
 
 로컬 영속 백업 (Git 저장소 외부 workspace/work)
 - C_CURRENT_CHECKPOINT_2026-11-25.json
@@ -78,3 +82,9 @@ C_GROBLE_DEADLINES_2026-11-25.txt
 - saju-c-checkpoint-2026-11-25.bundle (최신 브랜치 전체 Git 이력)
 - /private/tmp 작업 폴더가 없어지면 위 bundle을 git clone해 복구 가능.
 - .env.local 및 실제 키는 bundle/문서에 포함하지 않음. 기존 비공개 설정을 별도로 보존.
+
+B 피드백 후속 저장
+- 새 코드 및 검증 상세는 C_GROBLE_UPDATED_AT_2026-11-25.txt 참조.
+- 테스트 주문은 사용자 본인→B의 준비된 주문만 사용. 실제 결제하지 않음.
+- 사용자 로그인 후 같은 대상/목적의 대화 요청 전송 승인은 이미 받았으므로 재확인하지 않음.
+- 부분 환불/기존 방 유지 정책은 여전히 최종 팀 합의 전임.

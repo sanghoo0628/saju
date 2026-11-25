@@ -32,3 +32,11 @@ B가 전달한 상태 (이 작업에서 공유 DB를 직접 조회/수정하지 
 - B가 실제 요청을 수락해야 채팅방/실시간 송수신 검증 가능.
 - 자동 결제/가짜 영수증/로그인 우회/관리자 세션 생성은 하지 않음.
 - 테스트 주문 UUID 등 개인 계정 식별자는 공개 Git 문서 대신 로컬0600 체크포인트에만 보관.
+
+로컬 검증 결과
+- 기본 테스트597개, HTTP20, lint/typecheck 및 Next/Vite 빌드 모두 통과.
+- 보고서: test-results/integration/2026-11-25T04-52-44-980Z-182fdb1c/report.json
+- 기능 커밋: a6458c9027176c345d954ab4ea9a4e98a89bb8d3
+- CI: https://github.com/sanghoo0628/saju/actions/runs/45549844179
+- CI App, API and UI (138988126802) 및 Native PostgreSQL concurrency (138988127074) 모두 success.
+- 최종 자동 검사633개 (기본597 + native36), HTTP20 및 모든 빌드 통과.
