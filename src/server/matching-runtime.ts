@@ -20,6 +20,8 @@ const MATCHING_ERROR_STATUS: Record<MatchingErrorCode, number> = {
   TRACK_REQUIRED: 400,
   TRACK_LOCKED: 409,
   NOT_CONFIGURED: 503,
+  BIRTH_INPUT_LOCKED: 409,
+  BIRTH_INPUT_CHANGED: 409,
 };
 
 export function matchingApiHandler(operation: () => Promise<Response>) {

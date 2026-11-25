@@ -8,10 +8,11 @@ import type { MatchingFortuneInput, ReadyMatchingFortuneInput } from "./matching
  * - not_consented: the user did not opt in; nothing was sent to B.
  * - skipped: (3-pillar analysis only) the analysis was not ready, so nothing was saved.
  * - calendar_unsupported: matching birth dates are solar-only for now; lunar input is not stored.
+ * - locked: a fixed matching score already exists and the date differs; the DB keeps the first date.
  * - unavailable: matching storage is not configured on this server.
  * - failed: B rejected or could not save it. The fortune result is still returned.
  */
-export type MatchingStorageStatus = "stored" | "not_consented" | "skipped" | "calendar_unsupported" | "unavailable" | "failed";
+export type MatchingStorageStatus = "stored" | "not_consented" | "skipped" | "calendar_unsupported" | "locked" | "unavailable" | "failed";
 export interface MatchingStorageOutcome { status: MatchingStorageStatus }
 
 /** Only the fields B needs for the fixed score. Birth time, sex option and calculation options stay out. */
@@ -44,7 +45,10 @@ async function record(
   let recorder: FortuneStorageRecorder;
   try { recorder = getRecorder(); } catch { return { status: "unavailable" }; }
   // Do not log raw errors: they can contain birth input.
-  try { await write(recorder); return { status: "stored" }; } catch { return { status: "failed" }; }
+  try { await write(recorder); return { status: "stored" }; } catch (error) {
+    // B maps the DB trigger (20261125000400) to MatchingError("BIRTH_INPUT_LOCKED"). Same-date re-saves still succeed.
+    return { status: (error as { code?: unknown } | null)?.code === "BIRTH_INPUT_LOCKED" ? "locked" : "failed" };
+  }
 }
 
 /**

@@ -163,3 +163,11 @@ test("fortune calculation result is unchanged by the consent field", async () =>
   assert.equal(b.status, "ready");
   if (a.status === "ready" && b.status === "ready") assert.deepEqual(a.data, b.data);
 });
+
+test("a different date after the score exists reports locked, not a generic failure", async () => {
+  const { MatchingError } = await import("../../src/server/matching-service");
+  const locked = recorder({ async recordBirthInput() { throw new MatchingError("BIRTH_INPUT_LOCKED", "locked"); } });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => locked.value), { status: "locked" });
+  const changed = recorder({ async recordBirthInput() { throw new MatchingError("BIRTH_INPUT_CHANGED", "changed"); } });
+  assert.deepEqual(await storeBirthInputIfConsented(userId, consented, () => changed.value), { status: "failed" });
+});

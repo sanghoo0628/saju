@@ -11,10 +11,11 @@ import { FortuneAnalysisView, FortuneResultView } from './fortune-result';
 type Configuration = { provider: 'hrum' | 'mock' | 'unconfigured'; configured: boolean };
 function readStorageStatus(value: unknown): MatchingStorageStatus | null {
   const status = (value as { status?: unknown } | null | undefined)?.status;
-  return status === 'stored' || status === 'not_consented' || status === 'skipped' || status === 'calendar_unsupported' || status === 'unavailable' || status === 'failed' ? status : null;
+  return status === 'stored' || status === 'not_consented' || status === 'skipped' || status === 'calendar_unsupported' || status === 'locked' || status === 'unavailable' || status === 'failed' ? status : null;
 }
 function BirthStorageNotice({ status, onConsentAndRetry, busy, canRetry }: { status: MatchingStorageStatus | null; onConsentAndRetry: () => void; busy: boolean; canRetry: boolean }) {
   if (status === 'stored') return <div className="feedback success" role="status"><h2>매칭 정보 저장 완료</h2><p>추천에 사용할 생년월일 정보를 저장했어요. 사주 분석과 관계없이 이제 프로필을 만들 수 있어요.</p><Link className="text-link" href="/profile">프로필 만들기 →</Link></div>;
+  if (status === 'locked') return <div className="feedback notice" role="status"><h2>매칭 정보는 이미 저장돼 있어요</h2><p>매칭 점수가 만들어진 뒤에는 생년월일을 바꿀 수 없어요. 처음 저장한 생년월일로 추천이 이어지고, 사주 결과는 이번에 입력한 날짜로 보여 드려요.</p><Link className="text-link" href="/matches">추천 보기 →</Link></div>;
   if (status === 'calendar_unsupported') return <div className="feedback notice" role="status"><p>매칭용 생년월일은 지금 양력 날짜만 저장할 수 있어요. 추천을 받으려면 양력 날짜로 다시 입력해 주세요.</p></div>;
   if (status === 'not_consented') return <div className="feedback notice" role="status"><p>매칭용 저장에 동의하지 않아 생년월일을 저장하지 않았어요. 추천을 받으려면 {canRetry ? '저장에 동의해 주세요.' : '양력 날짜로 입력하고 저장에 동의해 주세요.'}</p>{canRetry ? <><button className="button secondary storage-retry" type="button" onClick={onConsentAndRetry} disabled={busy}>{busy ? '저장하고 있어요…' : '저장에 동의하고 추천 준비하기'}</button><p className="field-hint">같은 입력으로 다시 보내요. 5분 안이면 사주 계산은 다시 요청하지 않아요.</p></> : null}</div>;
   if (status === 'unavailable') return <div className="feedback error" role="status"><p>추천 연결을 준비하고 있어 생년월일을 아직 저장하지 못했어요.</p></div>;
