@@ -128,6 +128,8 @@ export interface ComputedScore {
 
 export interface ComputedBirthScore extends ComputedScore {
   scoreInput: ScoreInput;
+  /** 해시에 쓴 키. fortune_results.scored_birth_key 로 저장해 DB가 현재 생년월일과 대조한다. */
+  birthKey: string;
 }
 
 /** 생년월일·계열 → 저장할 점수 묶음. */
@@ -140,5 +142,5 @@ export function computeScore(birthDate: string, track: Track, secret: string): C
 export function computeScoreForBirthInput(input: BirthInput, track: Track, secret: string): ComputedBirthScore {
   const { key, scoreInput } = scoreKey(input);
   const baseNumber = baseNumberFromKey(key, secret);
-  return { baseNumber, score: toScore(baseNumber, track), scoreVersion: SCORE_VERSION, scoreInput };
+  return { baseNumber, score: toScore(baseNumber, track), scoreVersion: SCORE_VERSION, scoreInput, birthKey: key };
 }

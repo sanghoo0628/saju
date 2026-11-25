@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Gender } from "../contracts/matching";
 import type { BirthInput, Track } from "../lib/score";
-import type { MatchingStore, ProfileRow, StoredMatchResult } from "./matching-service";
+import { MatchingError, type MatchingStore, type ProfileRow, type StoredMatchResult } from "./matching-service";
 
 export const PROFILE_PHOTO_BUCKET = "profile-photos";
 /** 서명 URL 유효 시간(초) */
@@ -43,7 +43,18 @@ function toProfile(r: ProfileDbRow): ProfileRow {
   };
 }
 
+/** DB 트리거(20261125000400)가 던지는 생년월일 고정 오류를 사용자에게 설명할 수 있는 오류로 바꾼다. */
+function birthLockError(error: { message: string } | null): MatchingError | undefined {
+  if (error?.message === "BIRTH_INPUT_LOCKED")
+    return new MatchingError("BIRTH_INPUT_LOCKED", "매칭 점수가 이미 만들어져서 생년월일은 바꿀 수 없어요. 처음 저장한 생년월일로 추천이 이어져요.");
+  if (error?.message === "BIRTH_INPUT_CHANGED")
+    return new MatchingError("BIRTH_INPUT_CHANGED", "점수를 만드는 사이에 생년월일이 바뀌었어요. 다시 저장해 주세요.");
+  return undefined;
+}
+
 function check<T>(res: { data: T; error: { message: string } | null }, what: string): T {
+  const locked = birthLockError(res.error);
+  if (locked) throw locked;
   if (res.error) throw new Error(`${what} 실패: ${res.error.message}`);
   return res.data;
 }
@@ -111,6 +122,7 @@ export function createSupabaseMatchingStore(admin: SupabaseClient): MatchingStor
             score: s.score,
             score_version: s.scoreVersion,
             score_input: s.scoreInput,
+            scored_birth_key: s.birthKey,
           },
           { onConflict: "user_id", ignoreDuplicates: true },
         ),
