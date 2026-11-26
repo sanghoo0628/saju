@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/browser';
 import { loadMatchResults } from '@/lib/match-results-client';
+import { loadChatProfiles, type ChatProfileLookup } from '@/lib/chat-profiles-client';
 import type { MatchResultCard, MatchResultsResponse } from '@/contracts/matching';
 import { ChatPanel, type ChatSelection } from '../../packages/payment-chat-ui/src/ChatPanel';
 import { PaymentDialog } from '../../packages/payment-chat-ui/src/PaymentDialog';
 import { Busy } from '../../packages/payment-chat-ui/src/ui';
 import { MatchProfilePhoto } from './match-profile-photo';
-import type { ChatProfile } from '../../packages/payment-chat-ui/src/types';
 import { createBrowserClient, PaymentChatClientError } from '../../packages/payment-chat/src/client';
 import { createCheckoutFlow, type CheckoutState } from '../../packages/payment-chat/src/checkout-flow';
 import { createCheckoutReturnStore } from '../../packages/payment-chat/src/checkout-return-store';
@@ -35,7 +35,8 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   const [matchError, setMatchError] = useState('');
   const [matchLoading, setMatchLoading] = useState(true);
   const [reload, setReload] = useState(0);
-  const [profiles, setProfiles] = useState<ChatProfile[]>([]);
+  const [profileLookup, setProfileLookup] = useState<ChatProfileLookup & { key: string }>({ key: '', profiles: [], failed: false });
+  const [profileReload, setProfileReload] = useState(0);
   const [checkout, setCheckout] = useState<CheckoutState>({ kind: 'idle' });
   const flowRef = useRef<ReturnType<typeof createCheckoutFlow> | null>(null);
   const [selected, setSelected] = useState<MatchResultCard | null>(null);
@@ -110,18 +111,20 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   const publicIds = useMemo(() => [...new Set([
     ...inbox.rooms.flatMap(room => room.members), ...inbox.requests.flatMap(request => [request.from, request.to]),
   ])].filter(id => id !== userId).sort().join(','), [inbox.rooms, inbox.requests, userId]);
+  const profileKey = `${publicIds}:${profileReload}`;
+  const profiles = publicIds && profileLookup.key === profileKey ? profileLookup.profiles : [];
+  const profilesLoading = !!publicIds && profileLookup.key !== profileKey;
+  const profilesFailed = !!publicIds && profileLookup.key === profileKey && profileLookup.failed;
   useEffect(() => {
-    let alive = true;
     if (!publicIds) return;
+    const controller = new AbortController();
     // Browser RLS enforces visibility and blocking; never use the admin client for these lookups.
-    const ids = publicIds.split(',');
-    const batches = Array.from({ length: Math.ceil(ids.length / 50) }, (_, index) => ids.slice(index * 50, (index + 1) * 50));
-    void Promise.all(batches.map(batch => supabase.from('profiles').select('id,nickname,major').in('id', batch)))
-      .then(results => {
-        if (alive) setProfiles(results.flatMap(({ data, error }) => error ? [] : (data ?? []).map(row => ({ userId: row.id, nickname: row.nickname, major: row.major }))));
-      }).catch(() => { if (alive) setProfiles([]); });
-    return () => { alive = false; };
-  }, [supabase, publicIds]);
+    void loadChatProfiles(publicIds.split(','), (batch, signal) => supabase.from('profiles')
+      .select('id,nickname,major').in('id', batch).abortSignal(signal), { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setProfileLookup({ key: profileKey, ...result }); })
+      .catch(() => { if (!controller.signal.aborted) setProfileLookup({ key: profileKey, profiles: [], failed: true }); });
+    return () => controller.abort();
+  }, [supabase, publicIds, profileKey]);
 
   const action = useCallback(async (operation: () => Promise<void>) => {
     if (busyRef.current || !active.current) return;
@@ -176,6 +179,9 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
       <nav aria-label="소개와 대화"><Link href="/matches">무료 추천</Link><Link href="/requests">대화 요청</Link><Link href="/chat">내 대화</Link><Link href="/profile">내 프로필</Link></nav>
     </header>
     {actionError ? <p className="inline-error" role="alert">{actionError}</p> : null}
+    {(view === 'requests' || view === 'chat') && profilesLoading ? <p role="status">대화 상대 정보를 확인하고 있어요.</p> : null}
+    {(view === 'requests' || view === 'chat') && profilesFailed ? <div role="status"><p>일부 상대의 이름·학과 정보를 불러오지 못했어요. 대화 기능은 계속 이용할 수 있어요.</p>
+      <button className="secondary" onClick={() => setProfileReload(value => value + 1)}>상대 정보 다시 불러오기</button></div> : null}
     {view === 'matches' ? <section aria-label="무료 추천 프로필">
       <p className="campus-payment-status">새 결제는 연결 준비 중이에요. 이미 열린 대화와 받은 요청은 추가 결제 없이 이용할 수 있어요.</p>
       {matchLoading ? <Busy text="추천을 불러오고 있어요" /> : matchError ? <div role="alert"><p>{matchError}</p><button className="secondary" onClick={() => { setMatchLoading(true); setMatchError(''); setReload(value => value + 1); }}>다시 불러오기</button></div> : null}
