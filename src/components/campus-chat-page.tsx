@@ -6,7 +6,7 @@ import { CampusChat } from './campus-chat';
 
 export type CampusChatView = 'matches' | 'chat' | 'requests' | 'return';
 
-export async function CampusChatPage({ view, initialRoomId }: { view: CampusChatView; initialRoomId?: string }) {
+export async function CampusChatPage({ view, initialRoomId, initialRequestId }: { view: CampusChatView; initialRoomId?: string; initialRequestId?: string }) {
   let userId: string;
   try { userId = (await requireVerifiedSchoolUser()).user.id; }
   catch (error) {
@@ -19,5 +19,5 @@ export async function CampusChatPage({ view, initialRoomId }: { view: CampusChat
       <Link className="button primary" href="/login">로그인으로 이동</Link>
     </div></section>;
   }
-  return <CampusChat key={`${userId}:${view}:${initialRoomId ?? ''}`} userId={userId} view={view} initialRoomId={initialRoomId} />;
+  return <CampusChat key={`${userId}:${view}:${initialRoomId ?? ''}:${initialRequestId ?? ''}`} userId={userId} view={view} initialRoomId={initialRoomId} initialRequestId={initialRequestId} />;
 }
