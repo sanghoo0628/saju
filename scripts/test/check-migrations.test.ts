@@ -38,15 +38,33 @@ test('documentation and temporary files do not count as migrations', () => {
   assert.deepEqual(validateMigrationNames(files('README.md')).issues, [{ code: 'NO_MIGRATIONS', files: [] }]);
 });
 
-test('real directory validation rejects SQL directories and symlinks without following them', async () => {
+test('real directory validation rejects SQL directories', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'saju-migrations-'));
   try {
     await writeFile(join(directory, '20261125000100_inbox.sql'), 'select 1;');
     await mkdir(join(directory, '20261125000200_preferences.sql'));
-    await symlink(join(directory, '20261125000100_inbox.sql'), join(directory, '20261125000300_quota.sql'));
     const result = await checkMigrationDirectory(directory);
     assert.equal(result.ok, false);
-    assert.deepEqual(result.issues.map(issue => issue.code), ['NOT_A_FILE', 'NOT_A_FILE']);
+    assert.deepEqual(result.issues, [{ code: 'NOT_A_FILE', files: ['20261125000200_preferences.sql'] }]);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('real directory validation rejects SQL symlinks without following them', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'saju-migration-symlink-'));
+  try {
+    await writeFile(join(directory, '20261125000100_inbox.sql'), 'select 1;');
+    try {
+      await symlink(join(directory, '20261125000100_inbox.sql'), join(directory, '20261125000300_quota.sql'));
+    } catch (error) {
+      if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') {
+        t.skip('Windows account does not have permission to create symbolic links');
+        return;
+      }
+      throw error;
+    }
+    const result = await checkMigrationDirectory(directory);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.issues, [{ code: 'NOT_A_FILE', files: ['20261125000300_quota.sql'] }]);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

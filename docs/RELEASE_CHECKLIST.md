@@ -9,13 +9,13 @@
 ## 1. Supabase 프로젝트 (B)
 
 - [ ] 새 프로젝트 생성. 지역은 Vercel 함수 지역(`vercel.json` 의 `sin1`, 싱가포르)과 가까운 곳
-- [ ] 마이그레이션 9개 적용. 기존 파일은 고치지 않고 새 파일만 추가합니다.
+- [ ] 마이그레이션 12개 적용. 기존 파일은 고치지 않고 새 파일만 추가합니다.
   ```bash
   pnpm verify:migrations         # 로컬 파일명·버전 중복 검사. DB 연결/적용 없음
   npx supabase link --project-ref <운영 프로젝트 ref>
-  npx supabase db push --dry-run   # 9개가 나오는지 확인
+  npx supabase db push --dry-run   # 새 DB는 12개, 기존 DB는 미적용 파일만 확인
   npx supabase db push
-  npx supabase migration list      # local·remote 9개 일치 확인
+  npx supabase migration list      # local·remote 12개 일치 확인
   ```
   | 파일 | 내용 |
   |---|---|
@@ -27,8 +27,11 @@
   | `20261116000600_storage_profile_photos` | `profile-photos` 버킷과 정책 |
   | `20261123000100_birth_input_and_analysis` | 음력 입력·저장 동의·3주 분석, 사진 5MB·이미지 3종 제한 |
   | `20261125000100_groble_event_inbox` | 비공개 결제 이벤트·전송·환불 원장 |
+  | `20261125000200_match_preferences` | 추천 상대 성별 조건 |
+  | `20261125000300_fortune_provider_quota` | 한국 시간 기준 사용자·전체 HRUM 호출 한도 |
+  | `20261125000400_birth_input_lock` | 점수 생성 후 매칭용 생년월일 고정·동시 요청 보호 |
   | `20261125000500_groble_events_updated_at` | 이벤트 상태/연결 주문 변경 시각 |
-- [ ] 이 브랜치의 파일은 9개입니다. 다른 팀의 후속 파일이 추가되면 개수와 순서를 다시 확인합니다. saju-dev는 최근 읽기 전용 검사에서 C `001`까지 적용, C `005` 미적용으로 확인됐습니다. 기존 적용 파일을 수정하지 않고 후속 파일로 적용합니다.
+- [ ] 통합된 파일은 12개입니다. 다른 팀의 후속 파일이 추가되면 개수와 순서를 다시 확인합니다. 2026-11-26 saju-dev 읽기 전용 검사에서 `002`~`005` 적용을 확인했습니다. 별도 운영 DB의 적용 완료를 뜻하지 않습니다. 기존 적용 파일을 수정하지 않고 후속 파일로 적용합니다.
 - [ ] `pnpm verify:migrations` 통과 확인. 로컬 `check`·통합 검증과 CI의 앱/DB 검사 앞에서도 실행됩니다. 파일명이 달라도 같은 14자리 버전이면 실패합니다. 실제 DB 적용 이력·SQL 실행·이미 적용된 파일 불변 여부는 별도로 확인합니다.
 - [ ] **Database → Publications** 에서 `supabase_realtime` 에 `messages` 가 들어 있는지 확인 (채팅 실시간 수신)
 - [ ] **Storage** 에 `profile-photos` 버킷이 비공개로 있는지 확인
