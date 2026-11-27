@@ -1,0 +1,26 @@
+채팅 한글 입력 Enter 처리 보완 — 2026-11-27
+
+브랜치: fix/c-chat-ime-enter
+기준: PR #20의 feature/c-chat-profile-recovery / 9972b71
+PR #20 자체와 main은 변경하지 않는다. #20 리뷰 후 별도 후속 변경으로 검토할 수 있다.
+
+확인한 문제와 수정
+- 기존 textarea는 Enter에서 nativeEvent.isComposing만 확인했다.
+- 조합 확정 시 compositionend가 keydown보다 먼저 오면 isComposing=false여도 IME가 처리한 키일 수 있다.
+- keyCode=229도 전송에서 제외해 조합 확정과 메시지 전송을 구분한다.
+- 일반 Enter 전송과 Shift+Enter 줄바꿈, 전송 중/권한/기록 오류 검사는 유지한다.
+- 공유 ChatPanel에서 사용하는 키 처리 함수를 분리했다. DB/API/과금 정책 변경은 없다.
+- 참고: https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event#keydown_events_with_ime
+
+검증
+- 신규5개: 일반 Enter, Shift+Enter, 조합 중 Enter, 조합 종료 직후 keyCode229와 다음 일반 Enter, 일반 입력/이동키.
+- 기존 UI33+신규5=38개 통과.
+- keyCode229 예외를 제거한 상태에서는 해당 회귀 테스트1개가 실패하는 것을 확인한 후 원본 복원.
+- lint, 타입 검사, Next.js 앱 빌드, Vite 데모 빌드 통과.
+- 이벤트 입력을 주입한 단위 테스트다. 실제 OS 한글 IME를 이용한 브라우저 수동 검증이나 실제 메시지 전송은 하지 않았다.
+- 서버/DB 코드는 바꾸지 않아 전체 DB/결제 검사를 재실행하지 않았다. PR20의 전체 검증 결과와 이번 UI 검증 결과를 구분한다.
+
+운영 영향과 다음
+- 공유 DB/운영 배포/실제 메시지/이메일/결제/HRUM 호출 없음.
+- PR20 리뷰와 독립된 로컬 후속 커밋으로 저장한다. 새 PR이나 main 병합은 하지 않는다.
+- 실제 OS 조합 입력 QA는 로컬 가상 대화에서 확인할 수 있다. 실제 B 대화방에는 추가 메시지를 보내지 않는다.
