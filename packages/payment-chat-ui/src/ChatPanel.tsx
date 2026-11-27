@@ -16,6 +16,7 @@ import type { InboxSelection } from "../../payment-chat/src/inbox-session.ts";
 import type { MessageSource } from "../../payment-chat/src/message-source.ts";
 import type { ChatProfile } from "./types.ts";
 import { Avatar, Busy, Icon } from "./ui.tsx";
+import { handleComposerKeyDown } from './composer-keyboard.ts';
 
 export type ChatSelection = InboxSelection;
 type Api = ReturnType<typeof createBrowserClient>;
@@ -364,16 +365,7 @@ function Conversation({
           rows={1}
           disabled={sending || loading || !!historyError || !!accessError}
           onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              !event.shiftKey &&
-              !event.nativeEvent.isComposing
-            ) {
-              event.preventDefault();
-              void send();
-            }
-          }}
+          onKeyDown={(event) => handleComposerKeyDown(event, () => { void send(); })}
         />
         <span className="character-count">{draft.length}/2000</span>
         <button
