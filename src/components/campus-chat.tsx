@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/browser';
 import { loadMatchResults } from '@/lib/match-results-client';
+import { loadChatProfiles, type ChatProfileLookup } from '@/lib/chat-profiles-client';
 import type { MatchResultCard, MatchResultsResponse } from '@/contracts/matching';
 import { ChatPanel, type ChatSelection } from '../../packages/payment-chat-ui/src/ChatPanel';
 import { PaymentDialog } from '../../packages/payment-chat-ui/src/PaymentDialog';
-import { Busy } from '../../packages/payment-chat-ui/src/ui';
-import { MatchProfilePhoto } from './match-profile-photo';
-import type { ChatProfile } from '../../packages/payment-chat-ui/src/types';
+import { MatchRecommendations } from './match-recommendations';
 import { createBrowserClient, PaymentChatClientError } from '../../packages/payment-chat/src/client';
 import { createCheckoutFlow, type CheckoutState } from '../../packages/payment-chat/src/checkout-flow';
 import { createCheckoutReturnStore } from '../../packages/payment-chat/src/checkout-return-store';
-import { createInboxSession, reconcileInboxSelection, type InboxSnapshot, type InboxSession } from '../../packages/payment-chat/src/inbox-session';
+import { createInboxSession, initialInboxSelection, reconcileInboxSelection, type InboxSnapshot, type InboxSession } from '../../packages/payment-chat/src/inbox-session';
+import { recommendationAction } from '../../packages/payment-chat/src/recommendation-action';
 import { createSupabaseMessageSource } from '../../packages/payment-chat/src/supabase-message-source';
 import type { CampusChatView } from './campus-chat-page';
 
@@ -22,7 +22,7 @@ const safeError = (error: unknown) => error instanceof PaymentChatClientError
   ? error.message : '연결을 확인하고 다시 시도해주세요.';
 
 /** Authenticated composition only: no demo catalog, payment confirmation or fixed actor. */
-export function CampusChat({ userId, view, initialRoomId }: { userId: string; view: CampusChatView; initialRoomId?: string }) {
+export function CampusChat({ userId, view, initialRoomId, initialRequestId }: { userId: string; view: CampusChatView; initialRoomId?: string; initialRequestId?: string }) {
   const router = useRouter();
   const [api] = useState(() => createBrowserClient());
   const [supabase] = useState(() => createClient());
@@ -35,7 +35,8 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   const [matchError, setMatchError] = useState('');
   const [matchLoading, setMatchLoading] = useState(true);
   const [reload, setReload] = useState(0);
-  const [profiles, setProfiles] = useState<ChatProfile[]>([]);
+  const [profileLookup, setProfileLookup] = useState<ChatProfileLookup & { key: string }>({ key: '', profiles: [], failed: false });
+  const [profileReload, setProfileReload] = useState(0);
   const [checkout, setCheckout] = useState<CheckoutState>({ kind: 'idle' });
   const flowRef = useRef<ReturnType<typeof createCheckoutFlow> | null>(null);
   const [selected, setSelected] = useState<MatchResultCard | null>(null);
@@ -45,7 +46,7 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   const active = useRef(false);
   const [actionError, setActionError] = useState('');
   const [identityChanged, setIdentityChanged] = useState(false);
-  const appliedInitialRoom = useRef(false);
+  const appliedInitialSelection = useRef(false);
 
   useEffect(() => {
     active.current = true;
@@ -67,9 +68,12 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
     const stop = session.subscribe(next => {
       setInbox(next);
       setSelection(value => {
-        if (!appliedInitialRoom.current && initialRoomId && next.rooms.some(room => room.id === initialRoomId && room.members.includes(userId))) {
-          appliedInitialRoom.current = true;
-          return { kind: 'room', id: initialRoomId };
+        const initial = initialRoomId ? { kind: 'room' as const, id: initialRoomId }
+          : initialRequestId ? { kind: 'request' as const, id: initialRequestId } : null;
+        const available = !appliedInitialSelection.current && initialInboxSelection(initial, userId, next);
+        if (available) {
+          appliedInitialSelection.current = true;
+          return available;
         }
         return reconcileInboxSelection(value, userId, next);
       });
@@ -78,7 +82,7 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
     const visible = () => { if (document.visibilityState === 'visible') void session.refresh(true); };
     document.addEventListener('visibilitychange', visible);
     return () => { stop(); session.dispose(); sessionRef.current = null; document.removeEventListener('visibilitychange', visible); };
-  }, [userId, api, initialRoomId]);
+  }, [userId, api, initialRoomId, initialRequestId]);
 
   useEffect(() => {
     const flow = createCheckoutFlow({ client: api });
@@ -110,18 +114,20 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   const publicIds = useMemo(() => [...new Set([
     ...inbox.rooms.flatMap(room => room.members), ...inbox.requests.flatMap(request => [request.from, request.to]),
   ])].filter(id => id !== userId).sort().join(','), [inbox.rooms, inbox.requests, userId]);
+  const profileKey = `${publicIds}:${profileReload}`;
+  const profiles = publicIds && profileLookup.key === profileKey ? profileLookup.profiles : [];
+  const profilesLoading = !!publicIds && profileLookup.key !== profileKey;
+  const profilesFailed = !!publicIds && profileLookup.key === profileKey && profileLookup.failed;
   useEffect(() => {
-    let alive = true;
     if (!publicIds) return;
+    const controller = new AbortController();
     // Browser RLS enforces visibility and blocking; never use the admin client for these lookups.
-    const ids = publicIds.split(',');
-    const batches = Array.from({ length: Math.ceil(ids.length / 50) }, (_, index) => ids.slice(index * 50, (index + 1) * 50));
-    void Promise.all(batches.map(batch => supabase.from('profiles').select('id,nickname,major').in('id', batch)))
-      .then(results => {
-        if (alive) setProfiles(results.flatMap(({ data, error }) => error ? [] : (data ?? []).map(row => ({ userId: row.id, nickname: row.nickname, major: row.major }))));
-      }).catch(() => { if (alive) setProfiles([]); });
-    return () => { alive = false; };
-  }, [supabase, publicIds]);
+    void loadChatProfiles(publicIds.split(','), (batch, signal) => supabase.from('profiles')
+      .select('id,nickname,major').in('id', batch).abortSignal(signal), { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setProfileLookup({ key: profileKey, ...result }); })
+      .catch(() => { if (!controller.signal.aborted) setProfileLookup({ key: profileKey, profiles: [], failed: true }); });
+    return () => controller.abort();
+  }, [supabase, publicIds, profileKey]);
 
   const action = useCallback(async (operation: () => Promise<void>) => {
     if (busyRef.current || !active.current) return;
@@ -132,8 +138,14 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
   }, []);
 
   function start(result: MatchResultCard) {
-    const existingRoom = inbox.rooms.find(room => room.members.includes(userId) && room.members.includes(result.profile.userId));
-    if (existingRoom) { router.push(`/chat?room=${encodeURIComponent(existingRoom.id)}`); return; }
+    const next = recommendationAction(userId, result.profile.userId, inbox);
+    if (next.kind === 'disabled') return;
+    if (next.kind === 'navigate') { router.push(next.href); return; }
+    checkPermission(result);
+  }
+  function checkPermission(result: MatchResultCard) {
+    const next = recommendationAction(userId, result.profile.userId, inbox);
+    if (next.kind === 'disabled' || (next.kind === 'navigate' && !next.recheckPermission)) return;
     setSelected(result); setActionError(''); setPaymentOpen(true);
     // New checkout is unavailable until Groble is configured. C rolls back failed checkout creation.
     void flowRef.current?.start(result.id);
@@ -176,22 +188,16 @@ export function CampusChat({ userId, view, initialRoomId }: { userId: string; vi
       <nav aria-label="소개와 대화"><Link href="/matches">무료 추천</Link><Link href="/requests">대화 요청</Link><Link href="/chat">내 대화</Link><Link href="/profile">내 프로필</Link></nav>
     </header>
     {actionError ? <p className="inline-error" role="alert">{actionError}</p> : null}
-    {view === 'matches' ? <section aria-label="무료 추천 프로필">
-      <p className="campus-payment-status">새 결제는 연결 준비 중이에요. 이미 열린 대화와 받은 요청은 추가 결제 없이 이용할 수 있어요.</p>
-      {matchLoading ? <Busy text="추천을 불러오고 있어요" /> : matchError ? <div role="alert"><p>{matchError}</p><button className="secondary" onClick={() => { setMatchLoading(true); setMatchError(''); setReload(value => value + 1); }}>다시 불러오기</button></div> : null}
-      {!matchLoading && matches?.status === 'fortune_required' ? <div className="campus-empty"><h2>저장된 사주 결과가 필요해요</h2><p>사주 결과 저장 연결이 완료되면 추천을 시작할 수 있어요.</p><Link href="/fortune">나의 사주 확인</Link></div> : null}
-      {!matchLoading && matches?.status === 'profile_required' ? <div className="campus-empty"><h2>내 프로필을 먼저 공개해주세요</h2><Link href="/profile">프로필 등록·수정</Link></div> : null}
-      {!matchLoading && matches?.status === 'no_candidates' ? <p>아직 추천할 상대가 없어요. 후보가 생기면 다시 확인해주세요.</p> : null}
-      {!matchLoading && matches?.status === 'ready' ? <><p>무료 추천 {matches.results.length}명</p><div className="campus-profile-grid">{matches.results.map(result => <article className="campus-profile" key={result.id}>
-        <MatchProfilePhoto nickname={result.profile.nickname} photoUrl={result.profile.photoUrl} /><h2>{result.profile.nickname}</h2><p>{result.profile.major ?? '학과 비공개'}</p><p>{result.profile.bio}</p>
-        <div className="tags">{result.profile.interests.map(interest => <span key={interest}>{interest}</span>)}</div>
-        <button className="primary" onClick={() => start(result)}>{inbox.rooms.some(room => room.members.includes(result.profile.userId)) ? '대화 이어가기 · 무료' : '대화 권한 확인 · 500원'}</button>
-      </article>)}</div></> : null}
-    </section> : view === 'return' ? <div className="campus-empty"><p>결제창의 성공 표시 대신 서버에 저장된 주문 상태를 확인해요. 이 브라우저에 저장된 주문이 없다면 추천 화면에서 기존 주문을 확인해주세요.</p><Link href="/matches">무료 추천으로 돌아가기</Link></div> :
+    {(view === 'requests' || view === 'chat') && profilesLoading ? <p role="status">대화 상대 정보를 확인하고 있어요.</p> : null}
+    {(view === 'requests' || view === 'chat') && profilesFailed ? <div role="status"><p>일부 상대의 이름·학과 정보를 불러오지 못했어요. 대화 기능은 계속 이용할 수 있어요.</p>
+      <button className="secondary" onClick={() => setProfileReload(value => value + 1)}>상대 정보 다시 불러오기</button></div> : null}
+    {view === 'matches' ? <MatchRecommendations userId={userId} matches={matches} loading={matchLoading} error={matchError} inbox={inbox}
+      onReloadMatches={() => { setMatchLoading(true); setMatchError(''); setReload(value => value + 1); }}
+      onReloadInbox={() => { void sessionRef.current?.refresh(true); }} onStartMatch={start} onCheckPermission={checkPermission} /> : view === 'return' ? <div className="campus-empty"><p>결제창의 성공 표시 대신 서버에 저장된 주문 상태를 확인해요. 이 브라우저에 저장된 주문이 없다면 추천 화면에서 기존 주문을 확인해주세요.</p><Link href="/matches">무료 추천으로 돌아가기</Link></div> :
       <ChatPanel currentUserId={userId} profiles={profiles} api={api} rooms={inbox.rooms} requests={inbox.requests}
         messageSource={messageSource} selection={selection} listLoading={inbox.loading} listError={inbox.error}
         listHasMore={!inbox.requestsComplete || !inbox.roomsComplete} onReload={() => { void sessionRef.current?.refresh(true); }}
-        onSelect={setSelection} onAccept={accept} onReject={reject} busy={busy} />}
+        onSelect={value => { appliedInitialSelection.current = true; setSelection(value); }} onAccept={accept} onReject={reject} busy={busy} />}
     {paymentOpen ? <PaymentDialog profile={selected?.profile ?? { userId: '', nickname: '결제한 상대', major: null }} state={checkout}
       busy={busy} actionError={actionError} onClose={closePayment} onRequest={() => { void requestChat(); }} onRecheck={recheck}
       onRetry={() => { if ('orderId' in checkout && checkout.orderId) recheck(); else if (selected) void flowRef.current?.start(selected.id); }}

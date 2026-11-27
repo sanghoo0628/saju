@@ -299,6 +299,13 @@ export function createInboxSession(options: {
 }
 export type InboxSession = ReturnType<typeof createInboxSession>;
 
+/** A URL is a selection hint, never permission to fetch or display an unlisted request/room. */
+export function initialInboxSelection(selection: InboxSelection, userId: string, state: InboxSnapshot): InboxSelection {
+  if (!selection || state.userId !== userId || state.accessDenied || state.loading || state.error) return null;
+  if (selection.kind === 'room') return state.rooms.some(room => room.id === selection.id && room.members.includes(userId)) ? selection : null;
+  return state.requests.some(request => request.id === selection.id && (request.from === userId || request.to === userId)) ? selection : null;
+}
+
 /** Reconcile only the view the user selected; never open an unsolicited request automatically. */
 export function reconcileInboxSelection(
   selection: InboxSelection,
